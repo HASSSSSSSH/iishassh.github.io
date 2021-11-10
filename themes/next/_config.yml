@@ -177,7 +177,7 @@ site_state: true
 # Key is the link label showing to end users.
 # Value before `||` delimiter is the target permalink, value after `||` delimiter is the name of Font Awesome icon.
 social:
-  WeChat: https://s3.ax1x.com/2021/03/01/6i6h11.jpg || fab fa-weixin
+  WeChat: https://z3.ax1x.com/2021/03/01/6i6h11.jpg || fab fa-weixin
   E-Mail: mailto:13221419330@163.com || fa fa-envelope
   GitHub: https://github.com/hasssssssh || fab fa-github
   #Weibo: https://weibo.com/yourname || fab fa-weibo
