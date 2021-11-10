@@ -104,7 +104,7 @@ theme: next
 ## Docs: https://hexo.io/docs/one-command-deployment
 deploy:
   type: git
-  repo: https://github.com/HASSSSSSSH/hasssssssh.github.io
+  repo: https://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@github.com/HASSSSSSSH/hasssssssh.github.io.git
   branch: gh-pages
   name: hasssssssh
   email: hassssssssh@gmail.com
