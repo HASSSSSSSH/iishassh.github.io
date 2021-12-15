@@ -7,7 +7,7 @@ categories:
 
 
 
-> 本文基于源代码：android-security-10.0.0_r56
+> 本文基于源代码：[android-security-10.0.0_r56](https://cs.android.com/android/platform/superproject/+/android-security-10.0.0_r56:)
 
 
 
@@ -528,7 +528,7 @@ Result<Success> Epoll::RegisterHandler(int fd, std::function<void()> handler, ui
 
   结构体成员 `events` 用于表示要监听的事件，可以由零个或者多个事件类型组成，下面列出部分常见的事件类型：
 
-  - **EPOLLIN**
+  - **EPOLLIN**
     表示关联的文件描述符可用于读操作。
 
   - **EPOLLOUT**
@@ -2031,7 +2031,7 @@ int SecondStageMain(int argc, char** argv) {
 
 
 
-#### 2.4.5.2 HandleProcessActions
+#### 2.4.5.2 分析 HandleProcessActions 函数
 
 <!-- ((s->flags() & SVC_RUNNING) && s->timeout_period()) -->
 
