@@ -6,7 +6,7 @@ categories:
 
 
 
-> 本文基于源代码：android-security-10.0.0_r56
+> 本文基于源代码：[android-security-10.0.0_r56](https://cs.android.com/android/platform/superproject/+/android-security-10.0.0_r56:)
 
 
 
@@ -527,7 +527,7 @@ Result<Success> Epoll::RegisterHandler(int fd, std::function<void()> handler, ui
 
   结构体成员 `events` 用于表示要监听的事件，可以由零个或者多个事件类型组成，下面列出部分常见的事件类型：
 
-  - **EPOLLIN**
+  - **EPOLLIN**
     表示关联的文件描述符可用于读操作。
 
   - **EPOLLOUT**
@@ -991,7 +991,7 @@ static void handle_property_set_fd() {
 
 信号的处理方式有以下三种：
 
-- **忽略该信号**
+- **忽略该信号**
 - **按信号的默认行为处理该信号**
 - **使用自定义的信号处理函数来处理该信号**
 
@@ -2030,7 +2030,70 @@ int SecondStageMain(int argc, char** argv) {
 
 
 
-#### 2.4.5.2 HandleProcessActions
+<!-- TODO START -->
+
+从代码可以看出，Action 的添加是通过调用 ActionManager 的 QueueEventTrigger 函数和 QueueBuiltinAction 函数实现的。 
+
+首先来分析 QueueEventTrigger 函数，函数所在文件的路径为 `system/core/init/action_manager.cpp`：
+
+```c++
+void ActionManager::QueueEventTrigger(const std::string& trigger) {
+    event_queue_.emplace(trigger);
+}
+```
+
+其中 `event_queue_` 在头文件中的定义如下：
+
+```c++
+std::queue<std::variant<EventTrigger, PropertyChange, BuiltinAction>> event_queue_;
+```
+
+由定义可知，`event_queue_` 是一个队列。所以 QueueEventTrigger 函数的工作就是往队列 `event_queue_` 中添加一个元素 `trigger`。
+
+再来分析 QueueBuiltinAction 函数，函数所在文件的路径为 `system/core/init/action_manager.cpp`：
+
+```c++
+void ActionManager::QueueBuiltinAction(BuiltinFunction func, const std::string& name) {
+    // 创建 Action 对象
+    auto action = std::make_unique<Action>(true, nullptr, "<Builtin Action>", 0, name,
+                                           std::map<std::string, std::string>{});
+    action->AddCommand(func, {name}, 0);
+
+    // 将 action 放入容器
+    event_queue_.emplace(action.get());
+    actions_.emplace_back(std::move(action));
+}
+```
+
+我们已经知道 `event_queue_` 是一个容器，而 `actions_` 同样是一个容器，`actions_` 在头文件中的定义如下：
+
+```c++
+std::vector<std::unique_ptr<Action>> actions_;
+```
+
+由定义可知，`actions_` 是一个 vector 类型的容器。所以 QueueBuiltinAction 函数所做的工作是：创建 Action 对象，然后将对象放入容器。
+
+注意到，在创建 Action 对象之后，还调用了 Action 的 AddCommand 函数。接下来分析这个函数，函数所在文件的路径为 `system/core/init/action.cpp`：
+
+```c++
+void Action::AddCommand(BuiltinFunction f, std::vector<std::string>&& args, int line) {
+    commands_.emplace_back(f, false, std::move(args), line);
+}
+```
+
+其中 `commands_` 的定义如下：
+
+```c++
+std::vector<Command> commands_;
+```
+
+可知 `commands_` 是一个 vector 类型的容器。AddCommand 函数所做的工作是：通过入参构建 Command，并将其放入容器中。
+
+<!-- TODO END -->
+
+
+
+#### 2.4.5.2 分析 HandleProcessActions 函数
 
 <!-- ((s->flags() & SVC_RUNNING) && s->timeout_period()) -->
 
