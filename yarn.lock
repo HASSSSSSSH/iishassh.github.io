@@ -92,7 +92,7 @@ binary-extensions@^2.0.0:
   resolved "http://r.npm.sankuai.com/binary-extensions/download/binary-extensions-2.2.0.tgz#75f502eeaf9ffde42fc98829645be4ea76bd9e2d"
   integrity sha1-dfUC7q+f/eQvyYgpZFvk6na9ni0=
 
-bluebird@^3.2.2, bluebird@^3.5.1, bluebird@^3.5.2, bluebird@^3.5.5:
+bluebird@^3.2.2, bluebird@^3.5.0, bluebird@^3.5.1, bluebird@^3.5.2, bluebird@^3.5.5:
   version "3.7.2"
   resolved "http://r.npm.sankuai.com/bluebird/download/bluebird-3.7.2.tgz#9f229c15be272454ffa973ace0dbee79a1b0c36f"
   integrity sha1-nyKcFb4nJFT/qXOs4NvueaGww28=
@@ -484,6 +484,18 @@ hexo-cli@^4.0.0:
     resolve "^1.11.0"
     tildify "^2.0.0"
 
+hexo-deployer-git@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/hexo-deployer-git/-/hexo-deployer-git-3.0.0.tgz#da82f7a3445df2b213926dc8d030ba5499b68cf3"
+  integrity sha512-U2Xewjab+rvUDNTcuYYnOxitkDXL3f5VMUH32jKDHs3OC4YFVGRoEaTTDVHskqr3KRi78Wohjc6BSRHOoG3oxA==
+  dependencies:
+    bluebird "^3.5.0"
+    chalk "^4.0.0"
+    hexo-fs "^3.0.1"
+    hexo-util "^2.1.0"
+    moment "^2.18.0"
+    nunjucks "^3.2.1"
+
 hexo-front-matter@^2.0.0:
   version "2.0.0"
   resolved "http://r.npm.sankuai.com/hexo-front-matter/download/hexo-front-matter-2.0.0.tgz#03f39a9eedb16c5448dbb3bec7dff2c4e224006c"
@@ -523,6 +535,15 @@ hexo-generator-index@^2.0.0:
     hexo-pagination "1.0.0"
     timsort "^0.3.0"
 
+hexo-generator-sitemap@^2.1.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/hexo-generator-sitemap/-/hexo-generator-sitemap-2.2.0.tgz#4422670b6d9bbf8e512bc1219c4409f330cf3291"
+  integrity sha512-WoS/GpdrazoiFuhZXS3Qnb22L0uaiKHHWefcsoE7JLjh8WsksFom4v2FoNhr1RIYwFV7SudQFs91P5xcW+Gfow==
+  dependencies:
+    hexo-util "^2.1.0"
+    micromatch "^4.0.2"
+    nunjucks "^3.1.6"
+
 hexo-generator-tag@^1.0.0:
   version "1.0.0"
   resolved "http://r.npm.sankuai.com/hexo-generator-tag/download/hexo-generator-tag-1.0.0.tgz#54ec23de9409c75584ea81e36057a59031b022f1"
@@ -536,6 +557,11 @@ hexo-i18n@^1.0.0:
   integrity sha1-eYP7OjE+kGFbhN2PqUanHEie9b0=
   dependencies:
     sprintf-js "^1.0.3"
+
+hexo-image-link@0.0.3:
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/hexo-image-link/-/hexo-image-link-0.0.3.tgz#beadcd0a7b44a5fc29b0a3dc55672284f64bbb73"
+  integrity sha512-wyCCLzNnjzZCefo102Zrc3sGJIJSvK5TJTgv0pLEb8GRuHunN1De5h57qpbzVF2id4oQmBSIiugGmslG8U9VsA==
 
 hexo-log@^2.0.0:
   version "2.0.0"
@@ -794,9 +820,9 @@ minimatch@^3.0.2, minimatch@^3.0.4:
     brace-expansion "^1.1.7"
 
 minimist@^1.2.5:
-  version "1.2.5"
-  resolved "http://r.npm.sankuai.com/minimist/download/minimist-1.2.5.tgz#67d66014b66a6a8aaa0c083c5fd58df4e4e97602"
-  integrity sha1-Z9ZgFLZqaoqqDAg8X9WN9OTpdgI=
+  version "1.2.6"
+  resolved "https://registry.yarnpkg.com/minimist/-/minimist-1.2.6.tgz#8637a5b759ea0d6e98702cfb3a9283323c93af44"
+  integrity sha512-Jsjnk4bw3YJqYzbdyBiNsPWHPfO++UGG749Cxs6peCu5Xg4nrena6OVxOYxrQTqww0Jmwt+Ref8rggumkTLz9Q==
 
 mkdirp@0.5.x:
   version "0.5.5"
@@ -817,7 +843,7 @@ moment-timezone@^0.5.21:
   dependencies:
     moment ">= 2.9.0"
 
-"moment@>= 2.9.0", moment@^2.22.2:
+"moment@>= 2.9.0", moment@^2.18.0, moment@^2.22.2:
   version "2.29.1"
   resolved "http://r.npm.sankuai.com/moment/download/moment-2.29.1.tgz#b2be769fa31940be9eeea6469c075e35006fa3d3"
   integrity sha1-sr52n6MZQL6e7qZGnAdeNQBvo9M=
@@ -873,7 +899,7 @@ normalize-path@^3.0.0, normalize-path@~3.0.0:
   resolved "http://r.npm.sankuai.com/normalize-path/download/normalize-path-3.0.0.tgz#0dcd69ff23a1c9b11fd0978316644a0388216a65"
   integrity sha1-Dc1p/yOhybEf0JeDFmRKA4ghamU=
 
-nunjucks@^3.2.1:
+nunjucks@^3.1.6, nunjucks@^3.2.1:
   version "3.2.3"
   resolved "http://r.npm.sankuai.com/nunjucks/download/nunjucks-3.2.3.tgz#1b33615247290e94e28263b5d855ece765648a31"
   integrity sha1-GzNhUkcpDpTigmO12FXs52VkijE=
