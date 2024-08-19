@@ -1,6 +1,7 @@
 ---
 title: 符号数在计算机中的表示方法
-date: 2021-02-19 11:49:09
+date: 2021-02-19
+updated: 2021-03-28
 tags:
 - ComputerScience
 mathjax: true

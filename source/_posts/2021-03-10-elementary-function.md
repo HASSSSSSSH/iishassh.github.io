@@ -1,6 +1,7 @@
 ---
 title: 基本初等函数
-date: 2021-03-10 15:54:36
+date: 2021-03-10
+updated: 2021-03-28
 categories:
 - Mathematics
 mathjax: true

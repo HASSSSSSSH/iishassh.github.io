@@ -46,7 +46,7 @@
           {%- set time_diff = time(post.date) != time(post.updated) %}
           {%- set datetime_diff = date_diff or time_diff %}
 
-          {%- if theme.post_meta.created_at %}
+          {%- if theme.post_meta.created_at and not datetime_diff %}
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-calendar"></i>

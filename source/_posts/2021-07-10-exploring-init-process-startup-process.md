@@ -1,6 +1,7 @@
 ---
 title: 分析 init 进程的启动流程
-date: 2021-07-10 16:28:09
+date: 2021-07-10
+updated: 2021-12-15
 categories:
 - [Android]
 ---

@@ -1,6 +1,7 @@
 ---
 title: Android 同步屏障
-date: 2021-03-25 15:34:53
+date: 2021-03-25
+updated: 2021-03-25
 tags:
 categories:
 - [Android, Framework, Handler]

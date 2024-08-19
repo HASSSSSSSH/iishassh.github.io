@@ -1,6 +1,7 @@
 ---
 title: JNI 规范笔记
-date: 2021-08-08 17:44:16
+date: 2021-08-08
+updated: 2021-12-15
 categories:
 - Java
 ---
