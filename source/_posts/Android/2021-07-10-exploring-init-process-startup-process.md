@@ -2,6 +2,7 @@
 title: 分析 init 进程的启动流程
 date: 2021-07-10
 updated: 2021-12-15
+permalink: /android/exploring-init-process-startup-process/
 categories:
 - [Android]
 ---

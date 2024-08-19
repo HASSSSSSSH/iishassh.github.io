@@ -2,6 +2,7 @@
 title: Android 同步屏障
 date: 2021-03-25
 updated: 2021-03-25
+permalink: /android/sync-barrier/
 tags:
 categories:
 - [Android, Framework, Handler]
