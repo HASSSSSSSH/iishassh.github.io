@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-battery-three-quarters-solid.svg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-battery-three-quarters-solid.svg">
+  <link rel="mask-icon" href="/images/logo-battery-three-quarters-solid.svg" color="#222">
+  <meta name="google-site-verification" content="nWNR8Yv9ailBchmOqOqO2o1nkSuYZiy0BAq06keJoqo">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"hasssssssh.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"valine","storage":true,"lazyload":false,"nav":null,"activeClass":"valine"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文基于源代码：android-security-10.0.0_r56  1. 前言  Android 基于 Linux 内核，在内核启动过程中会创建出 init 进程。 init 进程是用户空间的第一个进程，进程的 pid &#x3D; 1。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分析 init 进程的启动流程">
+<meta property="og:url" content="https://hasssssssh.github.io/exploring-init-process-startup-process/index.html">
+<meta property="og:site_name" content="HASSH&#39;s Site">
+<meta property="og:description" content="本文基于源代码：android-security-10.0.0_r56  1. 前言  Android 基于 Linux 内核，在内核启动过程中会创建出 init 进程。 init 进程是用户空间的第一个进程，进程的 pid &#x3D; 1。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-07-09T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-12-14T16:00:00.000Z">
+<meta property="article:author" content="HASSH">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://hasssssssh.github.io/exploring-init-process-startup-process/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>分析 init 进程的启动流程 | HASSH's Site</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">HASSH's Site</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags<span class="badge">2</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories<span class="badge">5</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives<span class="badge">6</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/hasssssssh" class="github-corner" title="Hey!" aria-label="Hey!" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://hasssssssh.github.io/exploring-init-process-startup-process/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/blog-avatar.jpg">
+      <meta itemprop="name" content="HASSH">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HASSH's Site">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          分析 init 进程的启动流程
+        </h1>
+
+        <div class="post-meta">
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="修改时间：2021-12-15 00:00:00" itemprop="dateModified" datetime="2021-12-15T00:00:00+08:00">2021-12-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Android/" itemprop="url" rel="index"><span itemprop="name">Android</span></a>
+                </span>
+            </span>
+
+          
+  
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>本文基于源代码：<a target="_blank" rel="noopener" href="https://cs.android.com/android/platform/superproject/+/android-security-10.0.0_r56:">android-security-10.0.0_r56</a></p>
+</blockquote>
+<h1 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h1><!-- TODO: 关于 init 进程更好的概述 -->
+
+<p>Android 基于 Linux 内核，在内核启动过程中会创建出 init 进程。</p>
+<p>init 进程是用户空间的第一个进程，进程的 pid = 1。</p>
+<span id="more"></span>
+
+
+
+<h1 id="2-启动流程"><a href="#2-启动流程" class="headerlink" title="2. 启动流程"></a>2. 启动流程</h1><!-- TODO: 总结 -->
+
+
+
+<h2 id="2-1-init-进程的入口"><a href="#2-1-init-进程的入口" class="headerlink" title="2.1 init 进程的入口"></a>2.1 init 进程的入口</h2><!-- TODO: 为什么是入口？ -->
+
+<!-- TODO: init 就是一个普通的命令行程序, 位置在 /system/core/init？ -->
+
+<p>在 Android 9，init 进程的入口位于 <code>system/core/init/init.cpp</code> 中的 main 函数。</p>
+<p>在 Android 10 之后，init 进程的入口改到了 <code>system/core/init/main.cpp</code> 中的 main 函数。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(<span class="built_in">basename</span>(argv[<span class="number">0</span>]), <span class="string">&quot;ueventd&quot;</span>)) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">ueventd_main</span>(argc, argv);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (argc &gt; <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(argv[<span class="number">1</span>], <span class="string">&quot;subcontext&quot;</span>)) &#123;</span><br><span class="line">            android::base::<span class="built_in">InitLogging</span>(argv, &amp;android::base::KernelLogger);</span><br><span class="line">            <span class="type">const</span> BuiltinFunctionMap&amp; function_map = <span class="built_in">GetBuiltinFunctionMap</span>();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> <span class="built_in">SubcontextMain</span>(argc, argv, &amp;function_map);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(argv[<span class="number">1</span>], <span class="string">&quot;selinux_setup&quot;</span>)) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="built_in">SetupSelinux</span>(argv);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(argv[<span class="number">1</span>], <span class="string">&quot;second_stage&quot;</span>)) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="built_in">SecondStageMain</span>(argc, argv);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">FirstStageMain</span>(argc, argv);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>首先来了解其中使用到的两个库函数：<code>basename</code> 函数和 <code>strcmp</code> 函数。</p>
+<ul>
+<li><code>basename</code> 的函数原型为 <code>char* basename(char* __path)</code>，可以根据给定的一个路径，返回文件名。例如：传入参数 “/system/bin/ueventd”，函数会返回 “ueventd”。</li>
+<li><code>strcmp</code> 的函数原型为 <code>int strcmp(const char* __lhs, const char* __rhs)</code>，是一个字符串比较函数，返回值为整数。当两个字符串相等时，函数返回 0。</li>
+</ul>
+<p>再来分析 main 函数：函数的主要工作是根据参数 <code>argc</code> 和 <code>argv</code>，选择对应的执行方式。如果参数未匹配成功，则默认调用 <code>FirstStageMain</code> 函数。</p>
+<h2 id="2-2-启动的第一阶段"><a href="#2-2-启动的第一阶段" class="headerlink" title="2.2 启动的第一阶段"></a>2.2 启动的第一阶段</h2><!-- TODO: mkdir, mknod, tmpfs -->
+
+<!-- TODO: 所挂载的文件系统的用处 -->
+
+<!-- TODO: KernelLogging(/dev/kmsg) -->
+
+<!-- TODO: InstallRebootSignalHandlers -->
+
+<p>调用 <code>int FirstStageMain(int argc, char** argv)</code> 进入启动的第一阶段，函数所在文件的路径为 <code>system/core/init/first_stage_init.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">FirstStageMain</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">clearenv</span>());</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">setenv</span>(<span class="string">&quot;PATH&quot;</span>, _PATH_DEFPATH, <span class="number">1</span>));</span><br><span class="line">    <span class="comment">// Get the basic filesystem setup we need put together in the initramdisk</span></span><br><span class="line">    <span class="comment">// on / and then we&#x27;ll let the rc file figure out the rest.</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;tmpfs&quot;</span>, <span class="string">&quot;/dev&quot;</span>, <span class="string">&quot;tmpfs&quot;</span>, MS_NOSUID, <span class="string">&quot;mode=0755&quot;</span>));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mkdir</span>(<span class="string">&quot;/dev/pts&quot;</span>, <span class="number">0755</span>));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mkdir</span>(<span class="string">&quot;/dev/socket&quot;</span>, <span class="number">0755</span>));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mkdir</span>(<span class="string">&quot;/dev/dm-user&quot;</span>, <span class="number">0755</span>));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;devpts&quot;</span>, <span class="string">&quot;/dev/pts&quot;</span>, <span class="string">&quot;devpts&quot;</span>, <span class="number">0</span>, <span class="literal">NULL</span>));</span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MAKE_STR(x) __STRING(x)</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;proc&quot;</span>, <span class="string">&quot;/proc&quot;</span>, <span class="string">&quot;proc&quot;</span>, <span class="number">0</span>, <span class="string">&quot;hidepid=2,gid=&quot;</span> <span class="built_in">MAKE_STR</span>(AID_READPROC)));</span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> MAKE_STR</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Don&#x27;t expose the raw commandline to unprivileged processes.</span></span><br><span class="line">    <span class="comment">// 设置文件权限 [2.2.1]</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">chmod</span>(<span class="string">&quot;/proc/cmdline&quot;</span>, <span class="number">0440</span>));</span><br><span class="line">    std::string cmdline;</span><br><span class="line">    android::base::<span class="built_in">ReadFileToString</span>(<span class="string">&quot;/proc/cmdline&quot;</span>, &amp;cmdline);</span><br><span class="line">    <span class="comment">// Don&#x27;t expose the raw bootconfig to unprivileged processes.</span></span><br><span class="line">    <span class="built_in">chmod</span>(<span class="string">&quot;/proc/bootconfig&quot;</span>, <span class="number">0440</span>);</span><br><span class="line">    std::string bootconfig;</span><br><span class="line">    android::base::<span class="built_in">ReadFileToString</span>(<span class="string">&quot;/proc/bootconfig&quot;</span>, &amp;bootconfig);</span><br><span class="line">    <span class="type">gid_t</span> groups[] = &#123;AID_READPROC&#125;;</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">setgroups</span>(<span class="built_in">arraysize</span>(groups), groups));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;sysfs&quot;</span>, <span class="string">&quot;/sys&quot;</span>, <span class="string">&quot;sysfs&quot;</span>, <span class="number">0</span>, <span class="literal">NULL</span>));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;selinuxfs&quot;</span>, <span class="string">&quot;/sys/fs/selinux&quot;</span>, <span class="string">&quot;selinuxfs&quot;</span>, <span class="number">0</span>, <span class="literal">NULL</span>));</span><br><span class="line"></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mknod</span>(<span class="string">&quot;/dev/kmsg&quot;</span>, S_IFCHR | <span class="number">0600</span>, <span class="built_in">makedev</span>(<span class="number">1</span>, <span class="number">11</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">if</span> <span class="title">constexpr</span> <span class="params">(WORLD_WRITABLE_KMSG)</span> </span>&#123;</span><br><span class="line">        <span class="built_in">CHECKCALL</span>(<span class="built_in">mknod</span>(<span class="string">&quot;/dev/kmsg_debug&quot;</span>, S_IFCHR | <span class="number">0622</span>, <span class="built_in">makedev</span>(<span class="number">1</span>, <span class="number">11</span>)));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mknod</span>(<span class="string">&quot;/dev/random&quot;</span>, S_IFCHR | <span class="number">0666</span>, <span class="built_in">makedev</span>(<span class="number">1</span>, <span class="number">8</span>)));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mknod</span>(<span class="string">&quot;/dev/urandom&quot;</span>, S_IFCHR | <span class="number">0666</span>, <span class="built_in">makedev</span>(<span class="number">1</span>, <span class="number">9</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// This is needed for log wrapper, which gets called before ueventd runs.</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mknod</span>(<span class="string">&quot;/dev/ptmx&quot;</span>, S_IFCHR | <span class="number">0666</span>, <span class="built_in">makedev</span>(<span class="number">5</span>, <span class="number">2</span>)));</span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mknod</span>(<span class="string">&quot;/dev/null&quot;</span>, S_IFCHR | <span class="number">0666</span>, <span class="built_in">makedev</span>(<span class="number">1</span>, <span class="number">3</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// These below mounts are done in first stage init so that first stage mount can mount</span></span><br><span class="line">    <span class="comment">// subdirectories of /mnt/&#123;vendor,product&#125;/.  Other mounts, not required by first stage mount,</span></span><br><span class="line">    <span class="comment">// should be done in rc files.</span></span><br><span class="line">    <span class="comment">// Mount staging areas for devices managed by vold</span></span><br><span class="line">    <span class="comment">// See storage config details at http://source.android.com/devices/storage/</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;tmpfs&quot;</span>, <span class="string">&quot;/mnt&quot;</span>, <span class="string">&quot;tmpfs&quot;</span>, MS_NOEXEC | MS_NOSUID | MS_NODEV,</span><br><span class="line">                    <span class="string">&quot;mode=0755,uid=0,gid=1000&quot;</span>));</span><br><span class="line">    <span class="comment">// /mnt/vendor is used to mount vendor-specific partitions that can not be</span></span><br><span class="line">    <span class="comment">// part of the vendor partition, e.g. because they are mounted read-write.</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mkdir</span>(<span class="string">&quot;/mnt/vendor&quot;</span>, <span class="number">0755</span>));</span><br><span class="line">    <span class="comment">// /mnt/product is used to mount product-specific partitions that can not be</span></span><br><span class="line">    <span class="comment">// part of the product partition, e.g. because they are mounted read-write.</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mkdir</span>(<span class="string">&quot;/mnt/product&quot;</span>, <span class="number">0755</span>));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// /debug_ramdisk is used to preserve additional files from the debug ramdisk</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;tmpfs&quot;</span>, <span class="string">&quot;/debug_ramdisk&quot;</span>, <span class="string">&quot;tmpfs&quot;</span>, MS_NOEXEC | MS_NOSUID | MS_NODEV,</span><br><span class="line">                    <span class="string">&quot;mode=0755,uid=0,gid=0&quot;</span>));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// /second_stage_resources is used to preserve files from first to second</span></span><br><span class="line">    <span class="comment">// stage init</span></span><br><span class="line">    <span class="built_in">CHECKCALL</span>(<span class="built_in">mount</span>(<span class="string">&quot;tmpfs&quot;</span>, kSecondStageRes, <span class="string">&quot;tmpfs&quot;</span>, MS_NOEXEC | MS_NOSUID | MS_NODEV,</span><br><span class="line">                    <span class="string">&quot;mode=0755,uid=0,gid=0&quot;</span>))</span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> CHECKCALL</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">SetStdioToDevNull</span>(argv);</span><br><span class="line">    <span class="comment">// Now that tmpfs is mounted on /dev and we have /dev/kmsg, we can actually</span></span><br><span class="line">    <span class="comment">// talk to the outside world...</span></span><br><span class="line">    <span class="built_in">InitKernelLogging</span>(argv);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!errors.<span class="built_in">empty</span>()) &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">const</span> <span class="keyword">auto</span>&amp; [error_string, error_errno] : errors) &#123;</span><br><span class="line">            <span class="built_in">LOG</span>(ERROR) &lt;&lt; error_string &lt;&lt; <span class="string">&quot; &quot;</span> &lt;&lt; <span class="built_in">strerror</span>(error_errno);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">LOG</span>(FATAL) &lt;&lt; <span class="string">&quot;Init encountered errors starting first stage, aborting&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">LOG</span>(INFO) &lt;&lt; <span class="string">&quot;init first stage started!&quot;</span>;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 执行 /system/bin/init</span></span><br><span class="line">    <span class="comment">// 注意到传入的参数是 selinux_setup, 因此接下来会调用 SetupSelinux 函数进行 SELinux 的初始化 [2.3]</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span>* path = <span class="string">&quot;/system/bin/init&quot;</span>;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span>* args[] = &#123;path, <span class="string">&quot;selinux_setup&quot;</span>, <span class="literal">nullptr</span>&#125;;</span><br><span class="line">    <span class="keyword">auto</span> fd = <span class="built_in">open</span>(<span class="string">&quot;/dev/kmsg&quot;</span>, O_WRONLY | O_CLOEXEC);</span><br><span class="line">    <span class="built_in">dup2</span>(fd, STDOUT_FILENO);</span><br><span class="line">    <span class="built_in">dup2</span>(fd, STDERR_FILENO);</span><br><span class="line">    <span class="built_in">close</span>(fd);</span><br><span class="line">    <span class="built_in">execv</span>(path, <span class="built_in">const_cast</span>&lt;<span class="type">char</span>**&gt;(args));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// execv() only returns if an error happened, in which case we</span></span><br><span class="line">    <span class="comment">// panic and never fall through this conditional.</span></span><br><span class="line">    <span class="built_in">PLOG</span>(FATAL) &lt;&lt; <span class="string">&quot;execv(\&quot;&quot;</span> &lt;&lt; path &lt;&lt; <span class="string">&quot;\&quot;) failed&quot;</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此函数主要工作是挂载一些文件系统，然后执行 <code>/system/bin/init</code>，重新进入 main 函数，通过传入参数 <code>&quot;selinux_setup&quot;</code>，进而调用 SetupSelinux 函数，进行 SELinux 的初始化。</p>
+<h3 id="2-2-1-设置文件或目录的权限"><a href="#2-2-1-设置文件或目录的权限" class="headerlink" title="2.2.1 设置文件或目录的权限"></a>2.2.1 设置文件或目录的权限</h3><p>在 Linux 系统上，<code>chmod</code> 命令用于控制用户对文件或者目录的权限，但只有文件所有者和超级用户可以修改文件或目录的权限。</p>
+<p>权限分为三类：读，写，执行。</p>
+<h4 id="2-2-1-1-符号表示法"><a href="#2-2-1-1-符号表示法" class="headerlink" title="2.2.1.1 符号表示法"></a>2.2.1.1 符号表示法</h4><p>符号表示法用 10 位字符表示权限，其形式为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-rwxrwxrwx</span><br></pre></td></tr></table></figure>
+
+<p>其中第一个字符表示文件类型，常见的符号有：</p>
+<ul>
+<li><code>-</code>，表示普通文件。</li>
+<li><code>d</code>，表示目录。</li>
+<li><code>c</code>，表示字符特殊文件。</li>
+</ul>
+<p>剩余的 9 个字符，每 3 个字符分为一组，分别表示文件所有者，用户组，其他用户的权限。</p>
+<p>3 个字符组成的字符串，第 1 位控制读权限，第 2 位控制写权限，第 3 位控制执行权限：</p>
+<ul>
+<li>如果拥有读权限，第 1 位字符为 <code>r</code>，否则为 <code>-</code>。</li>
+<li>如果拥有写权限，第 2 位字符为 <code>w</code>，否则为 <code>-</code>。</li>
+<li>如果拥有执行权限，第 3 位字符为 <code>x</code>，否则为 <code>-</code>。</li>
+</ul>
+<p>示例：<code>-rwxrw-r--</code> 表示一个普通文件，文件所有者拥有读，写和执行权限，用户组拥有读和写权限，其他用户只有读权限。</p>
+<h4 id="2-2-1-2-数字表示法"><a href="#2-2-1-2-数字表示法" class="headerlink" title="2.2.1.2 数字表示法"></a>2.2.1.2 数字表示法</h4><p>可以用 4 位八进制数字表示权限，第 1 位同样表示文件类型，剩余的 3 位数字，分别表示文件所有者，用户组，其他用户的权限。</p>
+<p>读，写，执行，这 3 类权限可以使用 3 位二进制数字表示，不同类型的权限单独对应二进制数字中一个位：</p>
+<table>
+<thead>
+<tr>
+<th align="center">数值</th>
+<th align="center">权限</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">二进制：100，八进制：4</td>
+<td align="center">r</td>
+</tr>
+<tr>
+<td align="center">二进制：010，八进制：2</td>
+<td align="center">w</td>
+</tr>
+<tr>
+<td align="center">二进制：001，八进制：1</td>
+<td align="center">x</td>
+</tr>
+<tr>
+<td align="center">二进制：000，八进制：0</td>
+<td align="center">-</td>
+</tr>
+</tbody></table>
+<p>在各类权限对应的数值之和，可以代表一组特定的权限。由于和的数值范围为 0~7，因此可以通过一个八进制数字表示。示例：</p>
+<table>
+<thead>
+<tr>
+<th align="center">数值</th>
+<th align="center">权限</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">二进制：111，八进制：7</td>
+<td align="center">rwx</td>
+</tr>
+<tr>
+<td align="center">二进制：110，八进制：6</td>
+<td align="center">rw-</td>
+</tr>
+<tr>
+<td align="center">二进制：101，八进制：5</td>
+<td align="center">r-x</td>
+</tr>
+<tr>
+<td align="center">二进制：000，八进制：0</td>
+<td align="center">—</td>
+</tr>
+</tbody></table>
+<p>因此，用符号表示法表示的权限，同样可以使用数字表示法来表示，示例：</p>
+<table>
+<thead>
+<tr>
+<th align="center">符号表示法</th>
+<th align="center">数字表示法</th>
+<th align="center">说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">-rwxrwxrwx</td>
+<td align="center">0777</td>
+<td align="center">一个普通文件，文件所有者，用户组，其他用户都有读，写，执行的权限</td>
+</tr>
+<tr>
+<td align="center">-rwxrw-r–</td>
+<td align="center">0764</td>
+<td align="center">一个普通文件，文件所有者拥有读，写和执行权限，用户组拥有读和写权限，其他用户只有读权限。</td>
+</tr>
+</tbody></table>
+<h4 id="2-2-1-3-分析源码中的权限设置"><a href="#2-2-1-3-分析源码中的权限设置" class="headerlink" title="2.2.1.3 分析源码中的权限设置"></a>2.2.1.3 分析源码中的权限设置</h4><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Don&#x27;t expose the raw commandline to unprivileged processes.</span></span><br><span class="line"><span class="built_in">CHECKCALL</span>(<span class="built_in">chmod</span>(<span class="string">&quot;/proc/cmdline&quot;</span>, <span class="number">0440</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">// Don&#x27;t expose the raw bootconfig to unprivileged processes.</span></span><br><span class="line"><span class="built_in">chmod</span>(<span class="string">&quot;/proc/bootconfig&quot;</span>, <span class="number">0440</span>);</span><br></pre></td></tr></table></figure>
+
+<p>在源码中有两处使用到 <code>chmod</code> 命令，分别对文件 <code>/proc/cmdline</code>，<code>/proc/bootconfig</code> 设置了权限 <code>0440</code>，表明 root 用户 (文件所有者) 及其用户组也只有文件的读权限。</p>
+<h2 id="2-3-初始化-SELinux"><a href="#2-3-初始化-SELinux" class="headerlink" title="2.3 初始化 SELinux"></a>2.3 初始化 SELinux</h2><!-- TODO: 分析 SELinux -->
+
+<p>调用 <code>int SetupSelinux(char** argv)</code> 进行 SELinux 的初始化，该函数所在文件的路径为 <code>system/core/init/selinux.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// This function initializes SELinux then execs init to run in the init SELinux context.</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">SetupSelinux</span><span class="params">(<span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Set up SELinux, loading the SELinux policy.</span></span><br><span class="line">    <span class="comment">// 初始化 SELinux</span></span><br><span class="line">    <span class="built_in">SelinuxSetupKernelLogging</span>();</span><br><span class="line">    <span class="built_in">SelinuxInitialize</span>();</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 执行 /system/bin/init</span></span><br><span class="line">    <span class="comment">// 注意到传入的参数是 second_stage, 因此接下来会调用 SecondStageMain 函数进入启动的第二阶段 [2.4]</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span>* path = <span class="string">&quot;/system/bin/init&quot;</span>;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span>* args[] = &#123;path, <span class="string">&quot;second_stage&quot;</span>, <span class="literal">nullptr</span>&#125;;</span><br><span class="line">    <span class="built_in">execv</span>(path, <span class="built_in">const_cast</span>&lt;<span class="type">char</span>**&gt;(args));</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>函数首先初始化了 SELinux，然后执行 <code>/system/bin/init</code>，重新进入 main 函数，通过传入参数 <code>&quot;second_stage&quot;</code>，进而调用 SecondStageMain 函数，进入启动的第二阶段。</p>
+<h2 id="2-4-启动的第二阶段"><a href="#2-4-启动的第二阶段" class="headerlink" title="2.4 启动的第二阶段"></a>2.4 启动的第二阶段</h2><!-- TODO: property_load_boot_defaults -->
+
+<!-- TODO: 在编译的过程中, android 的各种系统参数会被汇总到 build.prop 文件中？ -->
+
+<!-- TODO: SELinux 相关代码的分析 -->
+
+<!-- TODO: keyctl_get_keyring_ID(KEY_SPEC_SESSION_KEYRING, 1) -->
+
+<!-- TODO: InitializeSubcontext() -->
+
+<!-- TODO: ActionManager 和 ServiceList 的作用 -->
+
+<p>调用 <code>int SecondStageMain(int argc, char** argv)</code> 进入启动的第二阶段，函数所在文件的路径为 <code>system/core/init/init.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">SecondStageMain</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Set init and its forked children&#x27;s oom_adj.</span></span><br><span class="line">    <span class="comment">// 设置 init 进程以及由其 fork 得到的子进程 oom_score_adj 的值</span></span><br><span class="line">    <span class="comment">// 数值越小, 进程优先级越高</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">auto</span> result = <span class="built_in">WriteFile</span>(<span class="string">&quot;/proc/1/oom_score_adj&quot;</span>, <span class="string">&quot;-1000&quot;</span>); !result) &#123;</span><br><span class="line">        <span class="built_in">LOG</span>(ERROR) &lt;&lt; <span class="string">&quot;Unable to write -1000 to /proc/1/oom_score_adj: &quot;</span> &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 初始化属性服务 [2.4.2.1]</span></span><br><span class="line">    <span class="built_in">property_init</span>();</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 初始化 epoll [2.4.1.1]</span></span><br><span class="line">    Epoll epoll;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">auto</span> result = epoll.<span class="built_in">Open</span>(); !result) &#123;</span><br><span class="line">        <span class="built_in">PLOG</span>(FATAL) &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 使用 epoll 对 init 子进程的信号进行监听 [2.4.3.1.3]</span></span><br><span class="line">    <span class="comment">// 初始化子进程退出的信号处理函数</span></span><br><span class="line">    <span class="built_in">InstallSignalFdHandler</span>(&amp;epoll);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 开启属性服务 [2.4.2.2]</span></span><br><span class="line">    <span class="built_in">StartPropertyService</span>(&amp;epoll);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    ActionManager&amp; am = ActionManager::<span class="built_in">GetInstance</span>();</span><br><span class="line">    ServiceList&amp; sm = ServiceList::<span class="built_in">GetInstance</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 加载启动脚本 [2.4.4]</span></span><br><span class="line">    <span class="built_in">LoadBootScripts</span>(am, sm);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加 Action [2.4.5.1]</span></span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(SetupCgroupsAction, <span class="string">&quot;SetupCgroups&quot;</span>);</span><br><span class="line">    am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;early-init&quot;</span>);</span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(wait_for_coldboot_done_action, <span class="string">&quot;wait_for_coldboot_done&quot;</span>);</span><br><span class="line">    ...</span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(queue_property_triggers_action, <span class="string">&quot;queue_property_triggers&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 进入无限循环状态 [2.4.5]</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">        <span class="keyword">auto</span> epoll_timeout = std::optional&lt;std::chrono::milliseconds&gt;&#123;&#125;;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (do_shutdown &amp;&amp; !shutting_down) &#123;</span><br><span class="line">            do_shutdown = <span class="literal">false</span>;</span><br><span class="line">            <span class="keyword">if</span> (<span class="built_in">HandlePowerctlMessage</span>(shutdown_command)) &#123;</span><br><span class="line">                shutting_down = <span class="literal">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!(waiting_for_prop || Service::<span class="built_in">is_exec_service_running</span>())) &#123;</span><br><span class="line">            am.<span class="built_in">ExecuteOneCommand</span>();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (!(waiting_for_prop || Service::<span class="built_in">is_exec_service_running</span>())) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!shutting_down) &#123;</span><br><span class="line">                <span class="keyword">auto</span> next_process_action_time = <span class="built_in">HandleProcessActions</span>();</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (next_process_action_time) &#123;</span><br><span class="line">                    epoll_timeout = std::chrono::<span class="built_in">ceil</span>&lt;std::chrono::milliseconds&gt;(</span><br><span class="line">                            *next_process_action_time - boot_clock::<span class="built_in">now</span>());</span><br><span class="line">                    <span class="keyword">if</span> (*epoll_timeout &lt; <span class="number">0</span>ms) epoll_timeout = <span class="number">0</span>ms;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (am.<span class="built_in">HasMoreCommands</span>()) epoll_timeout = <span class="number">0</span>ms;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">auto</span> result = epoll.<span class="built_in">Wait</span>(epoll_timeout); !result) &#123;</span><br><span class="line">            <span class="built_in">LOG</span>(ERROR) &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>第二阶段的工作可以大致分为 5 个部分：</p>
+<ul>
+<li><p>epoll</p>
+</li>
+<li><p>属性服务</p>
+</li>
+<li><p>信号</p>
+</li>
+<li><p>加载启动脚本</p>
+</li>
+<li><p>进入无限循环状态</p>
+</li>
+</ul>
+<p>接下来将分别对这 5 个部分的工作进行分析。</p>
+<h3 id="2-4-1-epoll"><a href="#2-4-1-epoll" class="headerlink" title="2.4.1 epoll"></a>2.4.1 epoll</h3><p>epoll 是 Linux 提供的 I/O 事件通知机制。epoll 可以监听大量的文件描述符，检查其中某一个文件描述符是否进入就绪状态。</p>
+<h4 id="2-4-1-1-初始化"><a href="#2-4-1-1-初始化" class="headerlink" title="2.4.1.1 初始化"></a>2.4.1.1 初始化</h4><p>在 init 进程中，epoll 通过以下代码初始化：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Epoll epoll;</span><br><span class="line"><span class="keyword">if</span> (<span class="keyword">auto</span> result = epoll.<span class="built_in">Open</span>(); !result) &#123;</span><br><span class="line">    <span class="built_in">PLOG</span>(FATAL) &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以知道，epoll 实例是通过调用 Open 函数创建的，函数所在文件的路径为 <code>system/core/init/epoll.cpp</code>，来分析这个函数：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Result&lt;Success&gt; <span class="title">Epoll::Open</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (epoll_fd_ &gt;= <span class="number">0</span>) <span class="keyword">return</span> <span class="built_in">Success</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 关键点</span></span><br><span class="line">    epoll_fd_.<span class="built_in">reset</span>(<span class="built_in">epoll_create1</span>(EPOLL_CLOEXEC));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (epoll_fd_ == <span class="number">-1</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">ErrnoError</span>() &lt;&lt; <span class="string">&quot;epoll_create1 failed&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">Success</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此函数的关键点在于调用 <code>epoll_create1</code>。<code>epoll_create1</code> 是一个系统调用，其新建了一个 epoll 实例并返回该实例文件描述符。</p>
+<h4 id="2-4-1-2-使用-epoll-监听文件描述符"><a href="#2-4-1-2-使用-epoll-监听文件描述符" class="headerlink" title="2.4.1.2 使用 epoll 监听文件描述符"></a>2.4.1.2 使用 epoll 监听文件描述符</h4><p>要使用 epoll 监听文件描述符，需要调用 RegisterHandler 函数，将文件描述符注册到 epoll。</p>
+<p>函数所在文件的路径为 <code>system/core/init/epoll.cpp</code>，此函数的关键点在于系统调用 epoll_ctl：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Result&lt;Success&gt; <span class="title">Epoll::RegisterHandler</span><span class="params">(<span class="type">int</span> fd, std::function&lt;<span class="type">void</span>()&gt; handler, <span class="type">uint32_t</span> events)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 关键点</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">epoll_ctl</span>(epoll_fd_, EPOLL_CTL_ADD, fd, &amp;ev) == <span class="number">-1</span>) &#123;</span><br><span class="line"></span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> result;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">Success</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>首先来看下 epoll_ctl 这个系统调用。</p>
+<h5 id="2-4-1-2-1-系统调用-epoll-ctl"><a href="#2-4-1-2-1-系统调用-epoll-ctl" class="headerlink" title="2.4.1.2.1 系统调用 epoll_ctl"></a>2.4.1.2.1 系统调用 epoll_ctl</h5><p><strong>epoll_ctl</strong> 是一个系统调用，函数原型为 <code>int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event)</code>，用于对指定的文件描述符 fd 进行添加、修改或者删除操作。</p>
+<h6 id="2-4-1-2-1-1-参数"><a href="#2-4-1-2-1-1-参数" class="headerlink" title="2.4.1.2.1.1 参数"></a>2.4.1.2.1.1 参数</h6><p>首先来理解 epoll_ctl 的参数：</p>
+<ul>
+<li><p><strong>epfd</strong> 是 epoll 实例的文件描述符。</p>
+</li>
+<li><p><strong>op</strong> 表示要执行的操作，有三种取值：</p>
+<ul>
+<li><p><strong>EPOLL_CTL_ADD</strong></p>
+<p>添加指定的文件描述符到 epoll 的监控列表。</p>
+</li>
+<li><p><strong>EPOLL_CTL_MOD</strong></p>
+<p>修改 epoll 的监控列表中指定的文件描述符。</p>
+</li>
+<li><p><strong>EPOLL_CTL_DEL</strong></p>
+<p>从 epoll 的监控列表中删除指定的文件描述符。</p>
+</li>
+</ul>
+</li>
+<li><p><strong>fd</strong> 表示指定的文件描述符。</p>
+</li>
+<li><p><strong>event</strong> 是一个 epoll_event 类型的指针，而 epoll_event 是一个结构体，其定义如下：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">epoll_event</span> &#123;</span><br><span class="line">   <span class="type">uint32_t</span>     events;      <span class="comment">/* Epoll events */</span></span><br><span class="line">   <span class="type">epoll_data_t</span> data;        <span class="comment">/* User data variable */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>结构体成员 <code>events</code> 用于表示要监听的事件，可以由零个或者多个事件类型组成，下面列出部分常见的事件类型：</p>
+<ul>
+<li><p><strong>EPOLLIN</strong><br>表示关联的文件描述符可用于读操作。</p>
+</li>
+<li><p><strong>EPOLLOUT</strong><br>表示关联的文件描述符可用于写操作。</p>
+</li>
+<li><p><strong>EPOLLPRI</strong><br>表示关联的文件描述符出现异常情况。</p>
+</li>
+<li><p><strong>EPOLLERR</strong><br>表示关联的文件描述符出现错误。</p>
+</li>
+<li><p><strong>EPOLLHUP</strong><br>表示关联的文件描述符被挂断。</p>
+</li>
+<li><p><strong>EPOLLONESHOT</strong><br>表示只监听文件描述符的一次事件。当事件触发之后，epoll 就会禁用此文件描述符。<br>如果想要继续监听该文件描述符的事件，需要再次调用 epoll_ctl，并执行 EPOLL_CTL_MOD 操作。</p>
+</li>
+</ul>
+<p>结构体成员 <code>data</code> 的作用是将其数据交给内核保存，当文件描述符就绪后，内核会返回保存的数据 [2.4.1.3]。<code>epoll_data_t</code> 是一个共用体，其定义如下：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">union</span> <span class="title class_">epoll_data</span> &#123;</span><br><span class="line">   <span class="type">void</span>        *ptr;</span><br><span class="line">   <span class="type">int</span>          fd;</span><br><span class="line">   <span class="type">uint32_t</span>     u32;</span><br><span class="line">   <span class="type">uint64_t</span>     u64;</span><br><span class="line">&#125; <span class="type">epoll_data_t</span>;</span><br></pre></td></tr></table></figure>
+
+
+
+</li>
+</ul>
+<h6 id="2-4-1-2-1-2-返回值"><a href="#2-4-1-2-1-2-返回值" class="headerlink" title="2.4.1.2.1.2 返回值"></a>2.4.1.2.1.2 返回值</h6><p>最后来了解 epoll_ctl 的返回值：</p>
+<ul>
+<li><p>当操作成功时，返回值为 0。</p>
+</li>
+<li><p>当发生错误时，返回值为 -1。</p>
+</li>
+</ul>
+<h5 id="2-4-1-2-2-分析-RegisterHandler-函数"><a href="#2-4-1-2-2-分析-RegisterHandler-函数" class="headerlink" title="2.4.1.2.2 分析 RegisterHandler 函数"></a>2.4.1.2.2 分析 RegisterHandler 函数</h5><p>在了解过系统调用 epoll_ctl 以后，现在开始分析 RegisterHandler 函数。首先来看函数在头文件中的声明，头文件的路径为 <code>system/core/init/epoll.h</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Epoll</span> &#123;</span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="function">Result&lt;Success&gt; <span class="title">RegisterHandler</span><span class="params">(<span class="type">int</span> fd, std::function&lt;<span class="type">void</span>()&gt; handler,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">uint32_t</span> events = EPOLLIN)</span></span>;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>由函数原型可知，函数的第三个参数 <code>events</code> 有默认值 <code>EPOLLIN</code>，表示监听文件描述符的读操作是否可用。</p>
+<p>接下来分析 RegisterHandler 函数：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Result&lt;Success&gt; <span class="title">Epoll::RegisterHandler</span><span class="params">(<span class="type">int</span> fd, std::function&lt;<span class="type">void</span>()&gt; handler, <span class="type">uint32_t</span> events)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// handler 是事件触发时的回调函数</span></span><br><span class="line">    <span class="keyword">auto</span> [it, inserted] = epoll_handlers_.<span class="built_in">emplace</span>(fd, std::<span class="built_in">move</span>(handler));</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    epoll_event ev;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 设置要监听的事件类型</span></span><br><span class="line">    <span class="comment">// 由于 events 有默认值 EPOLLIN, 因此默认监听的事件类型是读操作是否可用</span></span><br><span class="line">    ev.events = events;</span><br><span class="line">  </span><br><span class="line">    <span class="comment">// 设置回调函数, 回调函数会在事件触发后被调用 [2.4.1.3.2]</span></span><br><span class="line">    ev.data.ptr = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">void</span>*&gt;(&amp;it-&gt;second);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 发起 epoll_ctl 系统调用</span></span><br><span class="line">    <span class="comment">// 注意到第二个参数传入的是 EPOLL_CTL_ADD, 因此对指定文件描述符执行的是添加操作</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">epoll_ctl</span>(epoll_fd_, EPOLL_CTL_ADD, fd, &amp;ev) == <span class="number">-1</span>) &#123;</span><br><span class="line">        Result&lt;Success&gt; result = <span class="built_in">ErrnoError</span>() &lt;&lt; <span class="string">&quot;epoll_ctl failed to add fd&quot;</span>;</span><br><span class="line">        epoll_handlers_.<span class="built_in">erase</span>(fd);</span><br><span class="line">        <span class="keyword">return</span> result;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">Success</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>经过分析，可以知道函数的主要工作是：设置文件描述符需要监听的事件类型 <code>events</code> 以及事件触发时的回调函数 <code>handler</code>，最后发起 <code>epoll_ctl</code> 系统调用，将文件描述符添加到 epoll 监控列表。</p>
+<h4 id="2-4-1-3-等待事件触发"><a href="#2-4-1-3-等待事件触发" class="headerlink" title="2.4.1.3 等待事件触发"></a>2.4.1.3 等待事件触发</h4><p>经过 epoll 的初始化以及将文件描述符注册到 epoll 之后，接下来就需要等待事件触发，然后处理事件。</p>
+<p>在 init 进程启动的第二阶段，最后一个步骤就是进入死循环，不断地等待事件触发。接下来看下这段逻辑：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">SecondStageMain</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 关键点</span></span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">auto</span> result = epoll.<span class="built_in">Wait</span>(epoll_timeout); !result) &#123;</span><br><span class="line">            <span class="built_in">LOG</span>(ERROR) &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段逻辑的关键点在于 Wait 函数，接下来分析这个函数。</p>
+<h5 id="2-4-1-3-1-系统调用-epoll-wait"><a href="#2-4-1-3-1-系统调用-epoll-wait" class="headerlink" title="2.4.1.3.1 系统调用 epoll_wait"></a>2.4.1.3.1 系统调用 epoll_wait</h5><p>在分析 Wait 函数之前，首先要了解系统调用 epoll_wait，这个系统调用是 Wait 函数的关键点。</p>
+<p><strong>epoll_wait</strong> 是一个系统调用，函数原型为 <code>int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)</code>，用于等待 epoll 上的事件。</p>
+<p>调用 epoll_wait 便会进入阻塞状态，直至满足以下任一条件，调用才会返回：</p>
+<ul>
+<li>监听的文件描述符传递一个事件；</li>
+<li>调用被信号处理程序中断；</li>
+<li>等待超出超时时长。</li>
+</ul>
+<h6 id="2-4-1-3-1-1-参数"><a href="#2-4-1-3-1-1-参数" class="headerlink" title="2.4.1.3.1.1 参数"></a>2.4.1.3.1.1 参数</h6><p>首先来理解 epoll_wait 的参数：</p>
+<ul>
+<li><p><strong>epfd</strong> 是 epoll 实例的文件描述符。</p>
+</li>
+<li><p><strong>events</strong> 是一个 epoll_event 类型的指针，而 epoll_event 是一个结构体，在 [2.4.1.2.1] 一节已经详细介绍过。</p>
+<p>当事件触发后，调用就会返回，此时可以从 events 中得到已触发事件的集合。集合中每一个事件结构体 epoll_event 的 data 字段和调用 epoll_ctl 为相应的文件描述符设置的 data 字段是相同的。意味着，当事件触发后，之前调用 epoll_ctl 给指定文件描述符设置的 event.data 会通过这个参数返回给 epoll_wait 的调用者。</p>
+</li>
+<li><p><strong>maxevents</strong> 表示在一次调用中返回事件的最大数量。因此，从参数 events 中得到的事件数量不会大于 maxevents。</p>
+</li>
+<li><p><strong>timeout</strong> 是此次调用的超时时长。当 timeout = -1 时，调用将会一直阻塞，直到有事件发生；当 timeout = 0 时，调用会立即返回，即使当前没有事件发生。</p>
+</li>
+</ul>
+<h6 id="2-4-1-3-1-2-返回值"><a href="#2-4-1-3-1-2-返回值" class="headerlink" title="2.4.1.3.1.2 返回值"></a>2.4.1.3.1.2 返回值</h6><p>最后来了解 epoll_wait 的返回值：</p>
+<ul>
+<li><p>当调用成功时，返回值为已就绪的文件描述符的数量，此时可以对这些文件描述符进行 I/O 操作。</p>
+<p>需要注意的是，如果该调用是因为超出等待时长而返回的，则返回值为 0，表明没有已就绪的文件描述符。</p>
+</li>
+<li><p>当调用失败时，返回值为 -1，并返回错误信息。</p>
+</li>
+</ul>
+<h5 id="2-4-1-3-2-分析-Wait-函数"><a href="#2-4-1-3-2-分析-Wait-函数" class="headerlink" title="2.4.1.3.2 分析 Wait 函数"></a>2.4.1.3.2 分析 Wait 函数</h5><p>在了解过系统调用 epoll_wait 以后，就可以开始分析 Wait 函数，函数所在文件的路径为 <code>system/core/init/epoll.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Result&lt;Success&gt; <span class="title">Epoll::Wait</span><span class="params">(std::optional&lt;std::chrono::milliseconds&gt; timeout)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 超时时长默认值为 -1</span></span><br><span class="line">    <span class="type">int</span> timeout_ms = <span class="number">-1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (timeout &amp;&amp; timeout-&gt;<span class="built_in">count</span>() &lt; INT_MAX) &#123;</span><br><span class="line">        <span class="comment">// 当参数 timeout 满足不等于 0 和数值没有溢出时, 更新超时时长</span></span><br><span class="line">        timeout_ms = timeout-&gt;<span class="built_in">count</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    epoll_event ev;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 发起 epoll_wait 系统调用</span></span><br><span class="line">    <span class="comment">// 注意到第三个参数传入的是 1, 表明每次调用最多返回 1 个事件</span></span><br><span class="line">    <span class="keyword">auto</span> nr = <span class="built_in">TEMP_FAILURE_RETRY</span>(<span class="built_in">epoll_wait</span>(epoll_fd_, &amp;ev, <span class="number">1</span>, timeout_ms));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (nr == <span class="number">-1</span>) &#123;</span><br><span class="line">        <span class="comment">// 调用返回 -1, 表明此次调用失败</span></span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">ErrnoError</span>() &lt;&lt; <span class="string">&quot;epoll_wait failed&quot;</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (nr == <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="comment">// 调用返回 1, 表明此次调用成功, 有 1 个事件触发</span></span><br><span class="line">        <span class="comment">// ev.data.ptr 是之前调用 epoll_ctl 给指定文件描述符设置的回调函数, 因此事件最后交给回调函数进行处理</span></span><br><span class="line">        std::<span class="built_in">invoke</span>(*<span class="keyword">reinterpret_cast</span>&lt;std::function&lt;<span class="built_in">void</span>()&gt;*&gt;(ev.data.ptr));</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">Success</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此函数设置了超时时长，然后发起 <code>epoll_wait</code> 系统调用，等待事件触发。当 <code>epoll_wait</code> 成功返回时，会从返回的数据里面取出之前通过 epoll_ctl 设置的回调函数，将事件交由回调函数处理。</p>
+<h3 id="2-4-2-属性服务"><a href="#2-4-2-属性服务" class="headerlink" title="2.4.2 属性服务"></a>2.4.2 属性服务</h3><p>属性服务是 Android 提供的一个用于存取系统属性的服务，属性以 key-value 的形式存储在一块共享内存，所有进程都可以通过这个服务获取和设置属性。</p>
+<p>使用 adb，输入命令 <code>getprop</code>，可以查看一台设备上的属性，下面列举其中的一些输出：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[ro.product.brand]: [Redmi]</span><br><span class="line">[ro.product.manufacturer]: [Xiaomi]</span><br><span class="line">[ro.product.marketname]: [Redmi K30S Ultra]</span><br><span class="line">[ro.product.model]: [M2007J3SC]</span><br><span class="line">[ro.product.name]: [apollo]</span><br><span class="line"></span><br><span class="line">[ro.product.cpu.abi]: [arm64-v8a]</span><br><span class="line">[ro.product.cpu.abilist]: [arm64-v8a,armeabi-v7a,armeabi]</span><br><span class="line">[ro.product.cpu.abilist32]: [armeabi-v7a,armeabi]</span><br><span class="line">[ro.product.cpu.abilist64]: [arm64-v8a]</span><br><span class="line"></span><br><span class="line">[dalvik.vm.heapsize]: [512m]</span><br><span class="line">[dalvik.vm.heapstartsize]: [8m]</span><br></pre></td></tr></table></figure>
+
+<p>通过列举出的数据，可以看出属性里面包含了很多重要的信息：机型信息，CPU 架构，虚拟机分配的内存大小等等。</p>
+<p>在 Java 代码中，可以调用 <code>SystemProperties.get(String, String)</code> 方法获取系统属性。例如，在 ActivityManager 中就有这样的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">staticGetLargeMemoryClass</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="comment">// 通过获取系统属性 dalvik.vm.heapsize, 得出应用可用堆内存的最大值</span></span><br><span class="line">    <span class="type">String</span> <span class="variable">vmHeapSize</span> <span class="operator">=</span> SystemProperties.get(<span class="string">&quot;dalvik.vm.heapsize&quot;</span>, <span class="string">&quot;16m&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> Integer.parseInt(vmHeapSize.substring(<span class="number">0</span>, vmHeapSize.length() - <span class="number">1</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>类似地，调用 <code>SystemProperties.set(String, String)</code> 方法可以设置系统属性。例如，在 ActivityManagerService 中就有这样的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">finishBooting</span><span class="params">()</span> &#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">synchronized</span> (<span class="built_in">this</span>) &#123;</span><br><span class="line"></span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Tell anyone interested that we are done booting!</span></span><br><span class="line">        <span class="comment">// 通过设置属性 sys.boot_completed = 1, 标记系统已经启动完成</span></span><br><span class="line">        SystemProperties.set(<span class="string">&quot;sys.boot_completed&quot;</span>, <span class="string">&quot;1&quot;</span>);</span><br><span class="line"></span><br><span class="line">        ...</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="2-4-2-1-初始化"><a href="#2-4-2-1-初始化" class="headerlink" title="2.4.2.1 初始化"></a>2.4.2.1 初始化</h4><!-- TODO: 如何创建内存区域？ -->
+
+<!-- TODO: 进程是怎样获取共享内存中的属性？ -->
+
+<!-- TODO: 进程为什么不能直接设置共享内存中的属性？ -->
+
+<!-- TODO: CreateSerializedPropertyInfo() -->
+
+<!-- TODO: property_info_area.LoadDefaultPath() -->
+
+<p>属性服务初始化时，调用的是 property_init 函数，文件路径为 <code>system/core/init/property_service.cpp</code>。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">property_init</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="built_in">mkdir</span>(<span class="string">&quot;/dev/__properties__&quot;</span>, S_IRWXU | S_IXGRP | S_IXOTH);</span><br><span class="line">    <span class="built_in">CreateSerializedPropertyInfo</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建内存区域</span></span><br><span class="line">    <span class="keyword">if</span> (__system_property_area_init()) &#123;</span><br><span class="line">        <span class="built_in">LOG</span>(FATAL) &lt;&lt; <span class="string">&quot;Failed to initialize property area&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!property_info_area.<span class="built_in">LoadDefaultPath</span>()) &#123;</span><br><span class="line">        <span class="built_in">LOG</span>(FATAL) &lt;&lt; <span class="string">&quot;Failed to load serialized property info file&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>函数最主要的工作是通过调用 <code>__system_property_area_init</code> 函数，创建用于存储属性的内存区域。</p>
+<h4 id="2-4-2-2-启动"><a href="#2-4-2-2-启动" class="headerlink" title="2.4.2.2 启动"></a>2.4.2.2 启动</h4><!-- TODO: socket 的创建过程 -->
+
+<!-- TODO: listen(property_set_fd, 8) -->
+
+<!-- TODO: 一个进程是怎样向 init 进程发起属性设置的请求？ -->
+
+<p>属性服务启动时，调用的是 StartPropertyService 函数，文件路径为 <code>system/core/init/property_service.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">StartPropertyService</span><span class="params">(Epoll* epoll)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建 socket 并返回其文件描述符, 其中 PROP_SERVICE_NAME = &quot;property_service&quot;</span></span><br><span class="line">    property_set_fd = <span class="built_in">CreateSocket</span>(PROP_SERVICE_NAME, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK,</span><br><span class="line">                                   <span class="literal">false</span>, <span class="number">0666</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="literal">nullptr</span>);</span><br><span class="line">    <span class="keyword">if</span> (property_set_fd == <span class="number">-1</span>) &#123;</span><br><span class="line">        <span class="built_in">PLOG</span>(FATAL) &lt;&lt; <span class="string">&quot;start_property_service socket creation failed&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">listen</span>(property_set_fd, <span class="number">8</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将 socket 文件描述符注册到 epoll, 监听其可读事件 [2.4.1.2]</span></span><br><span class="line">    <span class="comment">// handle_property_set_fd 是可读事件触发时的回调函数 [2.4.2.3]</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">auto</span> result = epoll-&gt;<span class="built_in">RegisterHandler</span>(property_set_fd, handle_property_set_fd); !result) &#123;</span><br><span class="line">        <span class="built_in">PLOG</span>(FATAL) &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此函数首先创建名称为 property_service 的 socket，然后将 socket 文件描述符注册到 epoll，监听其可读事件。</p>
+<p>当可读事件触发时，会进入回调函数 <code>handle_property_set_fd</code>，接着来分析这个回调函数。</p>
+<h4 id="2-4-2-3-回调函数-handle-property-set-fd"><a href="#2-4-2-3-回调函数-handle-property-set-fd" class="headerlink" title="2.4.2.3 回调函数 handle_property_set_fd"></a>2.4.2.3 回调函数 handle_property_set_fd</h4><!-- TODO: ucred cr; socklen_t cr_size = sizeof(cr); -->
+
+<!-- TODO: 设置属性的具体实现 -->
+
+<!-- TODO: 除了通过向 init 进程发出请求设置属性以外, 在其他地方是否也有属性的设置？ -->
+
+<!-- TODO: 属性的同步问题 -->
+
+<p>函数所在文件的路径为 <code>system/core/init/property_service.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">handle_property_set_fd</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 2000ms</span></span><br><span class="line">    <span class="type">static</span> <span class="keyword">constexpr</span> <span class="type">uint32_t</span> kDefaultSocketTimeout = <span class="number">2000</span>; <span class="comment">/* ms */</span></span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="function">SocketConnection <span class="title">socket</span><span class="params">(s, cr)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 设置 2000ms 的超时时长</span></span><br><span class="line">    <span class="type">uint32_t</span> timeout_ms = kDefaultSocketTimeout;</span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> cmd = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">if</span> (!socket.<span class="built_in">RecvUint32</span>(&amp;cmd, &amp;timeout_ms)) &#123;</span><br><span class="line">        <span class="built_in">PLOG</span>(ERROR) &lt;&lt; <span class="string">&quot;sys_prop: error while reading command from the socket&quot;</span>;</span><br><span class="line">        socket.<span class="built_in">SendUint32</span>(PROP_ERROR_READ_CMD);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">switch</span> (cmd) &#123;</span><br><span class="line">    <span class="comment">// 处理 PROP_MSG_SETPROP 命令</span></span><br><span class="line">    <span class="keyword">case</span> PROP_MSG_SETPROP: &#123;</span><br><span class="line">        <span class="comment">// PROP_NAME_MAX = 32</span></span><br><span class="line">        <span class="type">char</span> prop_name[PROP_NAME_MAX];</span><br><span class="line">        <span class="type">char</span> prop_value[PROP_VALUE_MAX];</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 接收属性名和属性值, 分别存储于字符数组 prop_name 和 prop_value 中</span></span><br><span class="line">        <span class="keyword">if</span> (!socket.<span class="built_in">RecvChars</span>(prop_name, PROP_NAME_MAX, &amp;timeout_ms) ||</span><br><span class="line">            !socket.<span class="built_in">RecvChars</span>(prop_value, PROP_VALUE_MAX, &amp;timeout_ms)) &#123;</span><br><span class="line">          <span class="built_in">PLOG</span>(ERROR) &lt;&lt; <span class="string">&quot;sys_prop(PROP_MSG_SETPROP): error while reading name/value from the socket&quot;</span>;</span><br><span class="line">          <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 将字符数组中最后的一个元素设置为 0</span></span><br><span class="line">        prop_name[PROP_NAME_MAX<span class="number">-1</span>] = <span class="number">0</span>;</span><br><span class="line">        prop_value[PROP_VALUE_MAX<span class="number">-1</span>] = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">        <span class="type">const</span> <span class="keyword">auto</span>&amp; cr = socket.<span class="built_in">cred</span>();</span><br><span class="line">        std::string error;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 设置属性</span></span><br><span class="line">        <span class="type">uint32_t</span> result =</span><br><span class="line">            <span class="built_in">HandlePropertySet</span>(prop_name, prop_value, socket.<span class="built_in">source_context</span>(), cr, &amp;error);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (result != PROP_SUCCESS) &#123;</span><br><span class="line">            <span class="built_in">LOG</span>(ERROR) &lt;&lt; <span class="string">&quot;Unable to set property &#x27;&quot;</span> &lt;&lt; prop_name &lt;&lt; <span class="string">&quot;&#x27; to &#x27;&quot;</span> &lt;&lt; prop_value</span><br><span class="line">                       &lt;&lt; <span class="string">&quot;&#x27; from uid:&quot;</span> &lt;&lt; cr.uid &lt;&lt; <span class="string">&quot; gid:&quot;</span> &lt;&lt; cr.gid &lt;&lt; <span class="string">&quot; pid:&quot;</span> &lt;&lt; cr.pid &lt;&lt; <span class="string">&quot;: &quot;</span></span><br><span class="line">                       &lt;&lt; error;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 处理 PROP_MSG_SETPROP2 命令</span></span><br><span class="line">    <span class="keyword">case</span> PROP_MSG_SETPROP2: &#123;</span><br><span class="line">        std::string name;</span><br><span class="line">        std::string value;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 接收字符串类型的属性名和属性值</span></span><br><span class="line">        <span class="keyword">if</span> (!socket.<span class="built_in">RecvString</span>(&amp;name, &amp;timeout_ms) ||</span><br><span class="line">            !socket.<span class="built_in">RecvString</span>(&amp;value, &amp;timeout_ms)) &#123;</span><br><span class="line">          <span class="built_in">PLOG</span>(ERROR) &lt;&lt; <span class="string">&quot;sys_prop(PROP_MSG_SETPROP2): error while reading name/value from the socket&quot;</span>;</span><br><span class="line">          socket.<span class="built_in">SendUint32</span>(PROP_ERROR_READ_DATA);</span><br><span class="line">          <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">const</span> <span class="keyword">auto</span>&amp; cr = socket.<span class="built_in">cred</span>();</span><br><span class="line">        std::string error;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 设置属性</span></span><br><span class="line">        <span class="type">uint32_t</span> result = <span class="built_in">HandlePropertySet</span>(name, value, socket.<span class="built_in">source_context</span>(), cr, &amp;error);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (result != PROP_SUCCESS) &#123;</span><br><span class="line">            <span class="built_in">LOG</span>(ERROR) &lt;&lt; <span class="string">&quot;Unable to set property &#x27;&quot;</span> &lt;&lt; name &lt;&lt; <span class="string">&quot;&#x27; to &#x27;&quot;</span> &lt;&lt; value</span><br><span class="line">                       &lt;&lt; <span class="string">&quot;&#x27; from uid:&quot;</span> &lt;&lt; cr.uid &lt;&lt; <span class="string">&quot; gid:&quot;</span> &lt;&lt; cr.gid &lt;&lt; <span class="string">&quot; pid:&quot;</span> &lt;&lt; cr.pid &lt;&lt; <span class="string">&quot;: &quot;</span></span><br><span class="line">                       &lt;&lt; error;</span><br><span class="line">        &#125;</span><br><span class="line">        socket.<span class="built_in">SendUint32</span>(result);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        <span class="built_in">LOG</span>(ERROR) &lt;&lt; <span class="string">&quot;sys_prop: invalid command &quot;</span> &lt;&lt; cmd;</span><br><span class="line">        socket.<span class="built_in">SendUint32</span>(PROP_ERROR_INVALID_CMD);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>函数初始化了 socket 接收事件的超时时长，然后对接收到的 <code>cmd</code> 做相应的操作：</p>
+<ul>
+<li>对于 <code>PROP_MSG_SETPROP</code> 命令，使用两个长度为 <code>PROP_NAME_MAX</code> 的字符数组保存接收到的属性名和属性值。值得注意的是，最后会将字符数组中最后的一个元素设为 0，因此接收的属性名和属性值的最大长度不应超过 <code>PROP_NAME_MAX - 1</code> 。</li>
+<li>对于 <code>PROP_MSG_SETPROP2</code> 命令，使用两个 <code>std::string</code> 保存接收到的属性名和属性值。</li>
+</ul>
+<p>最后，不论是 <code>PROP_MSG_SETPROP</code> 命令还是 <code>PROP_MSG_SETPROP2</code> 命令，都会调用 <code>HandlePropertySet</code> 函数来设置属性。</p>
+<h3 id="2-4-3-信号"><a href="#2-4-3-信号" class="headerlink" title="2.4.3 信号"></a>2.4.3 信号</h3><p><strong>信号 (Signals)</strong> 属于 IPC 的一种方式，用于向一个进程或者进程中的特定线程发送事件通知。</p>
+<p>信号是一个<strong>异步的</strong>通信机制，一个进程可以不需要等待信号的到达。在信号未产生时，进程会正常执行；当信号产生后，系统可以中断目标进程的任何非原子操作，此时进程的正常执行流程会被中断，进而对信号进行处理。</p>
+<h4 id="2-4-3-1-处理信号"><a href="#2-4-3-1-处理信号" class="headerlink" title="2.4.3.1 处理信号"></a>2.4.3.1 处理信号</h4><p>在 Linux，一个子进程终结后，内核依然会为其维护关于此进程的最小信息集 (PID、终结状态、资源使用信息)，以便父进程获取有关子进程的信息。如果父进程没有为该子进程发起 wait、waitpid 或者 waitid 系统调用，那么子进程的信息就会一直占据着内核进程表的空间。在这种情况下，这个子进程就成为了一个**僵尸进程 (Zombie process)**。</p>
+<p>一般情况下，对于一个僵尸进程，如果其父进程终结了，那么 init 进程就会自动成为僵尸进程的父进程。此时，为了避免僵尸进程一直占据着系统资源，init 进程需要为僵尸进程释放占据的空间。</p>
+<p>而且，在加载启动脚本 [2.4.4] 这一步骤中，init 进程会 fork 得到一些子进程，例如：servicemanager 进程、zygote 进程。这些子进程对 Android 而言非常重要，在这些进程退出后，init 进程需要有相应的动作将其重启。</p>
+<p>于是，为了管理这些子进程，init 进程需要接收子进程终结的信号并进行相应的处理。</p>
+<p>在 Android，信号处理基于 Linux 的信号机制。</p>
+<h5 id="2-4-3-1-1-信号的处理方式"><a href="#2-4-3-1-1-信号的处理方式" class="headerlink" title="2.4.3.1.1 信号的处理方式"></a>2.4.3.1.1 信号的处理方式</h5><!-- 更正: 注册信号处理函数 -->
+
+<p>信号的处理方式有以下三种：</p>
+<ul>
+<li><strong>忽略该信号</strong></li>
+<li><strong>按信号的默认行为处理该信号</strong></li>
+<li><strong>使用自定义的信号处理函数来处理该信号</strong></li>
+</ul>
+<p>init 进程使用的是第三种处理方式：使用自定义的信号处理函数来处理该信号。进程注册了一个信号处理函数，当目标信号产生时，信号会被捕获，并调用注册的函数进行处理。</p>
+<p>接下来分析这个过程。</p>
+<h5 id="2-4-3-1-2-系统调用-sigaction"><a href="#2-4-3-1-2-系统调用-sigaction" class="headerlink" title="2.4.3.1.2 系统调用 sigaction"></a>2.4.3.1.2 系统调用 sigaction</h5><p>在分析 init 进程注册函数的过程之前，首先来了解系统调用 sigaction，这个系统调用是此过程的一个关键点。</p>
+<p><strong>sigaction</strong> 是一个系统调用，函数原型为 <code>int sigaction(int signum, const struct sigaction *restrict act, struct sigaction *restrict oldact)</code>，用于更改进程在收到指定信号后的行为。</p>
+<h6 id="2-4-3-1-2-1-参数"><a href="#2-4-3-1-2-1-参数" class="headerlink" title="2.4.3.1.2.1 参数"></a>2.4.3.1.2.1 参数</h6><p>首先来理解 sigaction 的参数：</p>
+<ul>
+<li><p><strong>signum</strong> 是指定信号的编号。</p>
+<p>同一个信号在不同的架构上可能有不同的编号。在 Android，ARM 架构的信号编号定义在 <code>bionic/libc/kernel/uapi/asm-arm/asm/signal.h</code> 文件上。</p>
+</li>
+<li><p><strong>act</strong> 是一个 sigaction 类型的指针，而 sigaction 是一个结构体，其定义如下：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">sigaction</span> &#123;</span><br><span class="line">   <span class="built_in">void</span>     (*sa_handler)(<span class="type">int</span>);</span><br><span class="line">   <span class="built_in">void</span>     (*sa_sigaction)(<span class="type">int</span>, <span class="type">siginfo_t</span> *, <span class="type">void</span> *);</span><br><span class="line">   <span class="type">sigset_t</span>   sa_mask;</span><br><span class="line">   <span class="type">int</span>        sa_flags;</span><br><span class="line">   <span class="built_in">void</span>     (*sa_restorer)(<span class="type">void</span>);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>关注结构体中两个较为重要的成员 <code>sa_handler</code> 和 <code>sa_flags</code>。</p>
+<p>成员 <code>sa_handler</code> 用于指定信号产生时的行为，可以是以下这些值之一：</p>
+<ul>
+<li><p><strong>SIG_DFL</strong></p>
+<p>表示执行该信号的默认行为。</p>
+</li>
+<li><p><strong>SIG_IGN</strong></p>
+<p>表示忽略该信号。</p>
+</li>
+<li><p><strong>一个指向信号处理函数的指针</strong></p>
+<p>信号编号 signum 将作为函数的唯一参数传入。当目标信号产生时，会自动调用此函数进行处理。</p>
+</li>
+</ul>
+<p>成员 <code>sa_flags</code> 是标志位，可以由零个或者多个标志组成。下面列出其中的一些标志：</p>
+<ul>
+<li><p><strong>SA_NOCLDSTOP</strong></p>
+<p>只有当 signum = SIGCHLD 时才有意义。表示进程不接收子进程停止或者恢复时产生的信号，只接收子进程终结的信号。</p>
+</li>
+<li><p><strong>SA_RESETHAND</strong></p>
+<p>当信号已经由信号处理函数处理过后，将信号恢复为使用默认行为进行处理。</p>
+</li>
+<li><p><strong>SA_SIGINFO</strong></p>
+<p>不再通过结构体成员 sa_handler 设置信号处理函数，而是使用成员 sa_sigaction。此时，函数的入参有三个。</p>
+</li>
+</ul>
+</li>
+<li><p><strong>oldact</strong> 同样是一个 sigaction 类型的指针，用于保存上一个 sigaction 调用所传入的参数 act，可以为空。</p>
+</li>
+</ul>
+<h6 id="2-4-3-1-2-2-返回值"><a href="#2-4-3-1-2-2-返回值" class="headerlink" title="2.4.3.1.2.2 返回值"></a>2.4.3.1.2.2 返回值</h6><p>最后来了解 sigaction 的返回值：</p>
+<ul>
+<li><p>当操作成功时，返回值为 0。</p>
+</li>
+<li><p>当发生错误时，返回值为 -1。</p>
+</li>
+</ul>
+<h5 id="2-4-3-1-3-init-进程注册信号处理函数"><a href="#2-4-3-1-3-init-进程注册信号处理函数" class="headerlink" title="2.4.3.1.3 init 进程注册信号处理函数"></a>2.4.3.1.3 init 进程注册信号处理函数</h5><p>在了解过系统调用 sigaction 以后，现在可以开始分析 init 进程注册信号处理函数的过程。</p>
+<h6 id="2-4-3-1-3-1-发起系统调用-sigaction"><a href="#2-4-3-1-3-1-发起系统调用-sigaction" class="headerlink" title="2.4.3.1.3.1 发起系统调用 sigaction"></a>2.4.3.1.3.1 发起系统调用 sigaction</h6><p>init 进程通过调用 InstallSignalFdHandler 函数实现注册信号处理函数，函数所在文件的路径为 <code>system/core/init/init.cpp</code>，首先来关注函数前半部分所做的工作：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">InstallSignalFdHandler</span><span class="params">(Epoll* epoll)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 构建结构体 sigaction</span></span><br><span class="line">    <span class="comment">// 成员 sa_handler 用于指定信号产生时的行为, 令 sa_handler = SIG_DFL 表明当信号产生时按默认行为对信号进行处理</span></span><br><span class="line">    <span class="comment">// 成员 sa_flags 是标志位, 令 sa_flags = SA_NOCLDSTOP 表明 init 进程不接收子进程被中断或者被中断后恢复时产生的信号, 只接收子进程终结的信号</span></span><br><span class="line">    <span class="type">const</span> <span class="keyword">struct</span> <span class="title class_">sigaction</span> act &#123; .sa_handler = SIG_DFL, .sa_flags = SA_NOCLDSTOP &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// sigaction 是一个系统调用, 用于更改进程在收到指定的信号时所执行的操作 [2.4.3.1.2]</span></span><br><span class="line">    <span class="comment">// 注意到第一个参数传入的是 SIGCHLD, 表明目标信号是 SIGCHLD, 当子进程终结, 被中断, 或者被中断后恢复时, 就会产生此信号</span></span><br><span class="line">    <span class="built_in">sigaction</span>(SIGCHLD, &amp;act, <span class="literal">nullptr</span>);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>函数前半部分所做的工作是：发起系统调用 sigaction，针对子进程产生的 <code>SIGCHLD</code> 信号，当进程在收到信号时，按默认行为对信号进行处理，而 <code>SIGCHLD</code> 信号的默认行为就是忽略该信号。</p>
+<p>值得注意的是，当子进程终结、被中断或者被中断后恢复时，都会产生 <code>SIGCHLD</code> 信号，而添加标志位 <code>SA_NOCLDSTOP</code> 可以使得 init 进程只接收子进程终结的信号。</p>
+<p>显然，在函数前半部分所做的工作中，并没有实现按自定义行为对信号进行处理。事实上，init 进程是通过监听 signal 文件描述符来实现按自定义行为来处理信号的。接下来分析 InstallSignalFdHandler 函数后半部分所做的工作。</p>
+<h6 id="2-4-3-1-3-2-监听-signal-文件描述符"><a href="#2-4-3-1-3-2-监听-signal-文件描述符" class="headerlink" title="2.4.3.1.3.2 监听 signal 文件描述符"></a>2.4.3.1.3.2 监听 signal 文件描述符</h6><p>之前提到，信号是一个异步的通信机制。进程可以注册一个信号处理函数，接着就能继续进行其他的工作，只有当目标信号发送到进程时，才回调处理函数进行处理，这里就体现出异步的性质。</p>
+<p>除了异步的方式以外，进程还可以通过同步的方式接收信号。Linux 提供了系统调用 signalfd，用于创建一个接收指定信号的文件描述符。对文件描述符执行读操作会进入阻塞状态，直到目标信号产生并传递给进程。</p>
+<p>init 进程就是通过这种方式来同步接收信号的，接下来分析这个过程：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">InstallSignalFdHandler</span><span class="params">(Epoll* epoll)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// mask 是一个信号集, 用于指定想要接收的信号</span></span><br><span class="line">    <span class="comment">// 在这里, 目标信号就是 SIGCHLD</span></span><br><span class="line">    <span class="type">sigset_t</span> mask;</span><br><span class="line">    <span class="built_in">sigemptyset</span>(&amp;mask);</span><br><span class="line">    <span class="built_in">sigaddset</span>(&amp;mask, SIGCHLD);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 获取 signal 文件描述符</span></span><br><span class="line">    <span class="comment">// 注意到, 在发起系统调用 signalfd 时, 传入的第一个参数是 -1, 则调用会创建一个新的文件描述符</span></span><br><span class="line">    signal_fd = <span class="built_in">signalfd</span>(<span class="number">-1</span>, &amp;mask, SFD_CLOEXEC);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (signal_fd == <span class="number">-1</span>) &#123;</span><br><span class="line">        <span class="built_in">PLOG</span>(FATAL) &lt;&lt; <span class="string">&quot;failed to create signalfd&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将 signal 文件描述符注册到 epoll, 监听其可读事件 [2.4.1.2]</span></span><br><span class="line">    <span class="comment">// HandleSignalFd 是可读事件触发时的回调函数 [2.4.3.1.4]</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">auto</span> result = epoll-&gt;<span class="built_in">RegisterHandler</span>(signal_fd, HandleSignalFd); !result) &#123;</span><br><span class="line">        <span class="built_in">LOG</span>(FATAL) &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>函数后半部分所做的工作是：创建信号集，信号集里面包含了信号 <code>SIGCHLD</code>，然后新建一个与信号集关联的 signal 文件描述符，最后将文件描述符注册到 epoll。</p>
+<p>当 signal 文件描述符的可读事件触发时，就会调用 HandleSignalFd 函数，接下来分析这个函数。</p>
+<h5 id="2-4-3-1-4-回调函数-HandleSignalFd"><a href="#2-4-3-1-4-回调函数-HandleSignalFd" class="headerlink" title="2.4.3.1.4 回调函数 HandleSignalFd"></a>2.4.3.1.4 回调函数 HandleSignalFd</h5><p>函数所在文件的路径为 <code>system/core/init/init.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">HandleSignalFd</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    signalfd_siginfo siginfo;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 从 signal 文件描述符中读取结构体 signalfd_siginfo, 每次读取一个</span></span><br><span class="line">    <span class="type">ssize_t</span> bytes_read = <span class="built_in">TEMP_FAILURE_RETRY</span>(<span class="built_in">read</span>(signal_fd, &amp;siginfo, <span class="built_in">sizeof</span>(siginfo)));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (bytes_read != <span class="built_in">sizeof</span>(siginfo)) &#123;</span><br><span class="line">        <span class="built_in">PLOG</span>(ERROR) &lt;&lt; <span class="string">&quot;Failed to read siginfo from signal_fd&quot;</span>;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 根据信号编号执行相应的操作</span></span><br><span class="line">    <span class="keyword">switch</span> (siginfo.ssi_signo) &#123;</span><br><span class="line">        <span class="keyword">case</span> SIGCHLD:</span><br><span class="line">            <span class="built_in">ReapAnyOutstandingChildren</span>();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> SIGTERM:</span><br><span class="line">            <span class="built_in">HandleSigtermSignal</span>(siginfo);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            <span class="built_in">PLOG</span>(ERROR) &lt;&lt; <span class="string">&quot;signal_fd: received unexpected signal &quot;</span> &lt;&lt; siginfo.ssi_signo;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当目标信号产生并传递给进程时，signal 文件描述符的可读事件就会触发，返回一个或者多个结构体 signalfd_siginfo。而函数 HandleSignalFd 负责从 signal 文件描述符中读出一个结构体 signalfd_siginfo，并根据信号编号执行相应的操作。</p>
+<p>在这里，我们关心的信号是 <code>SIGCHLD</code>。当此信号产生后，会调用 ReapAnyOutstandingChildren 函数，接着来分析这个函数。</p>
+<h6 id="2-4-3-1-4-1-分析-ReapAnyOutstandingChildren-函数"><a href="#2-4-3-1-4-1-分析-ReapAnyOutstandingChildren-函数" class="headerlink" title="2.4.3.1.4.1 分析 ReapAnyOutstandingChildren 函数"></a>2.4.3.1.4.1 分析 ReapAnyOutstandingChildren 函数</h6><p>函数所在文件的路径为 <code>system/core/init/sigchld_handler.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">ReapAnyOutstandingChildren</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="built_in">ReapOneProcess</span>()) &#123;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此函数循环调用 ReapOneProcess 函数，只有当函数 ReapOneProcess 返回 false 时，循环才会停止。接着来看 ReapOneProcess 函数做了什么工作。</p>
+<h6 id="2-4-3-1-4-2-分析-ReapOneProcess-函数"><a href="#2-4-3-1-4-2-分析-ReapOneProcess-函数" class="headerlink" title="2.4.3.1.4.2 分析 ReapOneProcess 函数"></a>2.4.3.1.4.2 分析 ReapOneProcess 函数</h6><!-- TODO: 分析 service->flags() -->
+
+<!-- TODO: 分析 ServiceList::GetInstance().RemoveService(*service) -->
+
+<p>函数所在文件的路径为 <code>system/core/init/sigchld_handler.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">bool</span> <span class="title">ReapOneProcess</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="type">siginfo_t</span> siginfo = &#123;&#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 发起系统调用 waitid, 此系统调用用于获取子进程状态的变更和相关的信息</span></span><br><span class="line">    <span class="comment">// 由于 init 进程只接收子进程终结的信号, 因此这里获取到的都是已进入僵尸状态的子进程的相关信息, 信息保存在 siginfo 当中</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">TEMP_FAILURE_RETRY</span>(<span class="built_in">waitid</span>(P_ALL, <span class="number">0</span>, &amp;siginfo, WEXITED | WNOHANG | WNOWAIT)) != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// 失败, 函数返回 false</span></span><br><span class="line">        <span class="built_in">PLOG</span>(ERROR) &lt;&lt; <span class="string">&quot;waitid failed&quot;</span>;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 获取子进程的 pid</span></span><br><span class="line">    <span class="keyword">auto</span> pid = siginfo.si_pid;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 子进程的 pid 不存在, 函数返回 false</span></span><br><span class="line">    <span class="keyword">if</span> (pid == <span class="number">0</span>) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    std::string name;</span><br><span class="line">    std::string wait_string;</span><br><span class="line">    Service* service = <span class="literal">nullptr</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">PropertyChildReap</span>(pid)) &#123;</span><br><span class="line">        name = <span class="string">&quot;Async property child&quot;</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="built_in">SubcontextChildReap</span>(pid)) &#123;</span><br><span class="line">        name = <span class="string">&quot;Subcontext&quot;</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 根据 pid 查询相应的 service</span></span><br><span class="line">        service = ServiceList::<span class="built_in">GetInstance</span>().<span class="built_in">FindService</span>(pid, &amp;Service::pid);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (service) &#123;</span><br><span class="line">            name = <span class="built_in">StringPrintf</span>(<span class="string">&quot;Service &#x27;%s&#x27; (pid %d)&quot;</span>, service-&gt;<span class="built_in">name</span>().<span class="built_in">c_str</span>(), pid);</span><br><span class="line"></span><br><span class="line">            ...</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            name = <span class="built_in">StringPrintf</span>(<span class="string">&quot;Untracked pid %d&quot;</span>, pid);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 没有找到对应的 service, 函数返回 true</span></span><br><span class="line">    <span class="keyword">if</span> (!service) <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 调用 service 的 Reap 函数</span></span><br><span class="line">    service-&gt;<span class="built_in">Reap</span>(siginfo);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>经分析可知，ReapOneProcess 函数的主要工作是：为每个进入终结状态的子进程发起系统调用 waitid，从而避免已进入僵尸状态的子进程一直占据着系统资源。最后，函数会根据子进程 pid 查找是否存在相应的 service，如果 service 存在，还会调用 service 的 Reap 函数。接着来分析 Reap 函数。</p>
+<h6 id="2-4-3-1-4-3-分析-Reap-函数"><a href="#2-4-3-1-4-3-分析-Reap-函数" class="headerlink" title="2.4.3.1.4.3 分析 Reap 函数"></a>2.4.3.1.4.3 分析 Reap 函数</h6><p>函数所在文件的路径为 <code>system/core/init/service.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">Service::Reap</span><span class="params">(<span class="type">const</span> <span class="type">siginfo_t</span>&amp; siginfo)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!(flags_ &amp; SVC_ONESHOT) || (flags_ &amp; SVC_RESTART)) &#123;</span><br><span class="line">        <span class="comment">// 如果服务的标志位同时不带有 SVC_ONESHOT 和 SVC_RESTART, 则直接杀死服务所在的进程组</span></span><br><span class="line">        <span class="built_in">KillProcessGroup</span>(SIGKILL);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 如果服务的标志位带有 SVC_TEMPORARY, 则直接返回</span></span><br><span class="line">    <span class="keyword">if</span> (flags_ &amp; SVC_TEMPORARY) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 重置状态</span></span><br><span class="line">    pid_ = <span class="number">0</span>;</span><br><span class="line">    flags_ &amp;= (~SVC_RUNNING);</span><br><span class="line">    start_order_ = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ((flags_ &amp; SVC_ONESHOT) &amp;&amp; !(flags_ &amp; SVC_RESTART) &amp;&amp; !(flags_ &amp; SVC_RESET)) &#123;</span><br><span class="line">        <span class="comment">// 将带有 SVC_ONESHOT 的服务设为不可用状态</span></span><br><span class="line">        flags_ |= SVC_DISABLED;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (flags_ &amp; (SVC_DISABLED | SVC_RESET))  &#123;</span><br><span class="line">        <span class="comment">// 如果服务的标志位带有 SVC_DISABLED 或者 SVC_RESET, 则使其进入 stopped 状态, 不会自动重启</span></span><br><span class="line">        <span class="built_in">NotifyStateChange</span>(<span class="string">&quot;stopped&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 带有标志位 SVC_CRITICAL 的服务会被标记为系统关键服务</span></span><br><span class="line">    <span class="comment">// 如果服务在 4 分钟之内崩溃 4 次以上, 又或者服务崩溃时系统处于未完全启动状态</span></span><br><span class="line">    <span class="comment">// 则设备会重启并进入 bootloader 或者设置崩溃相关的属性</span></span><br><span class="line">    boot_clock::time_point now = boot_clock::<span class="built_in">now</span>();</span><br><span class="line">    <span class="keyword">if</span> (((flags_ &amp; SVC_CRITICAL) || !pre_apexd_) &amp;&amp; !(flags_ &amp; SVC_RESTART)) &#123;</span><br><span class="line">        <span class="type">bool</span> boot_completed = android::base::<span class="built_in">GetBoolProperty</span>(<span class="string">&quot;sys.boot_completed&quot;</span>, <span class="literal">false</span>);</span><br><span class="line">        <span class="keyword">if</span> (now &lt; time_crashed_ + <span class="number">4</span>min || !boot_completed) &#123;</span><br><span class="line">            <span class="keyword">if</span> (++crash_count_ &gt; <span class="number">4</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (flags_ &amp; SVC_CRITICAL) &#123;</span><br><span class="line">                    <span class="comment">// Aborts into bootloader</span></span><br><span class="line">                    <span class="built_in">LOG</span>(FATAL) &lt;&lt; <span class="string">&quot;critical process &#x27;&quot;</span> &lt;&lt; name_ &lt;&lt; <span class="string">&quot;&#x27; exited 4 times &quot;</span></span><br><span class="line">                               &lt;&lt; (boot_completed ? <span class="string">&quot;in 4 minutes&quot;</span> : <span class="string">&quot;before boot completed&quot;</span>);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="built_in">LOG</span>(ERROR) &lt;&lt; <span class="string">&quot;updatable process &#x27;&quot;</span> &lt;&lt; name_ &lt;&lt; <span class="string">&quot;&#x27; exited 4 times &quot;</span></span><br><span class="line">                               &lt;&lt; (boot_completed ? <span class="string">&quot;in 4 minutes&quot;</span> : <span class="string">&quot;before boot completed&quot;</span>);</span><br><span class="line">                    <span class="comment">// Notifies update_verifier and apexd</span></span><br><span class="line">                    <span class="built_in">property_set</span>(<span class="string">&quot;ro.init.updatable_crashing&quot;</span>, <span class="string">&quot;1&quot;</span>);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            time_crashed_ = now;</span><br><span class="line">            crash_count_ = <span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加标志位 SVC_RESTARTING, init 进程会重启带有此标志位的服务 [2.4.5.2]</span></span><br><span class="line">    flags_ &amp;= (~SVC_RESTART);</span><br><span class="line">    flags_ |= SVC_RESTARTING;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 执行当前 service 中所有 onrestart 命令</span></span><br><span class="line">    onrestart_.<span class="built_in">ExecuteAllCommands</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 使服务进入 restarting 状态</span></span><br><span class="line">    <span class="built_in">NotifyStateChange</span>(<span class="string">&quot;restarting&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Reap 函数最主要的工作就是重启有需要的服务。注意到，改变服务状态是通过调用 NotifyStateChange 函数实现的，来看看这个函数。</p>
+<h6 id="2-4-3-1-4-4-分析-NotifyStateChange-函数"><a href="#2-4-3-1-4-4-分析-NotifyStateChange-函数" class="headerlink" title="2.4.3.1.4.4 分析 NotifyStateChange 函数"></a>2.4.3.1.4.4 分析 NotifyStateChange 函数</h6><p>函数所在文件的路径为 <code>system/core/init/service.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">Service::NotifyStateChange</span><span class="params">(<span class="type">const</span> std::string&amp; new_state)</span> <span class="type">const</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> ((flags_ &amp; SVC_TEMPORARY) != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// 如果服务的标志位中带有 SVC_TEMPORARY, 则不会使用属性服务来记录它的状态</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 使用属性服务来记录服务当前的状态</span></span><br><span class="line">    std::string prop_name = <span class="string">&quot;init.svc.&quot;</span> + name_;</span><br><span class="line">    <span class="built_in">property_set</span>(prop_name, new_state);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过分析这个函数，可以知道，系统会使用属性服务以 key-value 的形式存储服务当前的状态，其中 key 的取值为 init.svc.[service_name]，value 是服务当前的状态。因此，可以使用 adb，输入命令 <code>getprop | grep init.svc.</code>，查看设备上 service 的运行状态，以下是其中的一些输出：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[init.svc.adbd]: [running]</span><br><span class="line">[init.svc.alarm-hal-1-0]: [running]</span><br><span class="line">[init.svc.android.thermal-hal]: [running]</span><br><span class="line">[init.svc.apexd]: [stopped]</span><br><span class="line">[init.svc.apexd-bootstrap]: [stopped]</span><br><span class="line">[init.svc.apexd-snapshotde]: [stopped]</span><br><span class="line">[init.svc.audioserver]: [running]</span><br><span class="line">[init.svc.wifidisplayhalservice]: [running]</span><br><span class="line">[init.svc.wpa_supplicant]: [running]</span><br><span class="line">[init.svc.zygote]: [running]</span><br><span class="line">[init.svc.zygote_secondary]: [running]</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-4-4-加载启动脚本"><a href="#2-4-4-加载启动脚本" class="headerlink" title="2.4.4 加载启动脚本"></a>2.4.4 加载启动脚本</h3><!-- TODO: 分析函数 CreateParser -->
+
+<!-- TODO: .rc 文件的解析过程 -->
+
+<!-- TODO: 属性的变更如何触发脚本中的属性触发器？ -->
+
+<!-- TODO: /system/etc/init -->
+
+<!-- TODO: /odm/etc/init -->
+
+<!-- TODO: /vendor/etc/init -->
+
+<p>调用 LoadBootScripts 函数加载启动脚本，函数所在文件的路径为 <code>system/core/init/init.cpp</code>。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">LoadBootScripts</span><span class="params">(ActionManager&amp; action_manager, ServiceList&amp; service_list)</span> </span>&#123;</span><br><span class="line">    Parser parser = <span class="built_in">CreateParser</span>(action_manager, service_list);</span><br><span class="line"></span><br><span class="line">    std::string bootscript = <span class="built_in">GetProperty</span>(<span class="string">&quot;ro.boot.init_rc&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (bootscript.<span class="built_in">empty</span>()) &#123;</span><br><span class="line">        <span class="comment">// 加载 init.rc 脚本文件 [2.4.4.1]</span></span><br><span class="line">        parser.<span class="built_in">ParseConfig</span>(<span class="string">&quot;/init.rc&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 加载 /system/etc/init 目录下的所有脚本文件</span></span><br><span class="line">        <span class="keyword">if</span> (!parser.<span class="built_in">ParseConfig</span>(<span class="string">&quot;/system/etc/init&quot;</span>)) &#123;</span><br><span class="line">            late_import_paths.<span class="built_in">emplace_back</span>(<span class="string">&quot;/system/etc/init&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 加载 /product/etc/init 目录下的所有脚本文件</span></span><br><span class="line">        <span class="keyword">if</span> (!parser.<span class="built_in">ParseConfig</span>(<span class="string">&quot;/product/etc/init&quot;</span>)) &#123;</span><br><span class="line">            late_import_paths.<span class="built_in">emplace_back</span>(<span class="string">&quot;/product/etc/init&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 加载 /product_services/etc/init 目录下的所有脚本文件</span></span><br><span class="line">        <span class="keyword">if</span> (!parser.<span class="built_in">ParseConfig</span>(<span class="string">&quot;/product_services/etc/init&quot;</span>)) &#123;</span><br><span class="line">            late_import_paths.<span class="built_in">emplace_back</span>(<span class="string">&quot;/product_services/etc/init&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 加载 /odm/etc/init 目录下的所有脚本文件</span></span><br><span class="line">        <span class="keyword">if</span> (!parser.<span class="built_in">ParseConfig</span>(<span class="string">&quot;/odm/etc/init&quot;</span>)) &#123;</span><br><span class="line">            late_import_paths.<span class="built_in">emplace_back</span>(<span class="string">&quot;/odm/etc/init&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 加载 /vendor/etc/init 目录下的所有脚本文件</span></span><br><span class="line">        <span class="keyword">if</span> (!parser.<span class="built_in">ParseConfig</span>(<span class="string">&quot;/vendor/etc/init&quot;</span>)) &#123;</span><br><span class="line">            late_import_paths.<span class="built_in">emplace_back</span>(<span class="string">&quot;/vendor/etc/init&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        parser.<span class="built_in">ParseConfig</span>(bootscript);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>一般情况下，此函数会去加载一些指定的脚本，其中：</p>
+<ul>
+<li><code>init.rc</code> 是主要的 .rc 文件。</li>
+<li><code>/system/etc/init/</code> 包含了核心的系统项目，例如：SurfaceFlinger, MediaService, logcatd。</li>
+<li><code>/vendor/etc/init/</code> 包含了 SoC 供应商项目，例如：核心 SoC 功能所需的操作或守护进程。</li>
+<li><code>/odm/etc/init/</code> 包含了设备制造商项目，例如：运动传感器或其他外围设备所需的操作或守护进程。</li>
+</ul>
+<p>init.rc 是最主要脚本文件，接下来将对这个脚本进行分析。</p>
+<h4 id="2-4-4-1-init-rc-脚本"><a href="#2-4-4-1-init-rc-脚本" class="headerlink" title="2.4.4.1 init.rc 脚本"></a>2.4.4.1 init.rc 脚本</h4><p>在 Android，后缀为 .rc 的文件由 Android Init Language 编写，<a target="_blank" rel="noopener" href="https://cs.android.com/android/platform/superproject/+/android-security-10.0.0_r56:system/core/init/README.md">关于 Android Init Language 的详细说明</a> 可以在 AOSP 上找到，路径为 <code>system/core/init/README.md</code>。</p>
+<p>在分析脚本之前，首先来了解这种语言的语法。</p>
+<h5 id="2-4-4-1-1-Android-Init-Language"><a href="#2-4-4-1-1-Android-Init-Language" class="headerlink" title="2.4.4.1.1 Android Init Language"></a>2.4.4.1.1 Android Init Language</h5><p>Android Init Language 由五大类表达式组成：<code>Actions</code>，<code>Commands</code>，<code>Services</code>，<code>Options</code>，<code>Imports</code>。</p>
+<p>其语法规则有：</p>
+<ul>
+<li>每一行都是一条语句，一条语句由多个 token 组成，token 之间以空格分开。</li>
+<li>如果一个 token 包含了空格，可以跟 c 语言类似，使用反斜杠 <code>\</code> 作为转义字符，又或者使用双引号包裹整个 token。</li>
+<li>在行的末尾使用反斜杠 <code>\</code>，可以将语句换行。</li>
+<li>以符号 <code>#</code> 开头的行是注释行。</li>
+<li>系统属性的值可以通过语法 <code>$&#123;property.name&#125;</code> 获取，例如：<code>import /init.recovery.$&#123;ro.hardware&#125;.rc</code>。</li>
+<li>一个文件可以分为多个 section，必须使用 <code>Actions</code> 或者 <code>Services</code> 来声明一个新的 section。所有的 <code>Commands</code> 和 <code>Options</code> 都是属于最近声明的那一个 section。如果在一个 section 之前声明了 <code>Commands</code> 或者 <code>Options</code> ，则声明会被忽略。</li>
+<li><code>Services</code> 的名称必须是唯一的，如果存在多个重名的 <code>Services</code> ，除了第一个以外，其他的都会被忽略，并且会输出错误日志。</li>
+</ul>
+<p>接下来列出一些较为重要的表达式。</p>
+<h6 id="2-4-4-1-1-1-Actions"><a href="#2-4-4-1-1-1-Actions" class="headerlink" title="2.4.4.1.1.1 Actions"></a>2.4.4.1.1.1 Actions</h6><p><code>Actions</code> 由 一系列 <code>Commands</code> 组成，同时 <code>Triggers</code> 决定了 <code>Actions</code> 的触发时机，其形式为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">on &lt;trigger&gt; [&amp;&amp; &lt;trigger&gt;]*</span><br><span class="line">   &lt;command&gt;</span><br><span class="line">   &lt;command&gt;</span><br><span class="line">   &lt;command&gt;</span><br></pre></td></tr></table></figure>
+
+<p>当一个事件触发后，如果此事件能够匹配上 <code>Actions</code> 的  <code>Triggers</code>，那么 <code>Actions</code> 会被添加到待执行队列的尾部。</p>
+<p>之后，待执行队列中的 <code>Actions</code> 会按照加入顺序出队，并且执行该 <code>Actions</code> 中的 <code>Commands</code>。</p>
+<p>以启动 Zygote 作为示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">on zygote-start &amp;&amp; property:ro.crypto.state=unencrypted</span><br><span class="line">    exec_start update_verifier_nonencrypted</span><br><span class="line">    start netd</span><br><span class="line">    start zygote</span><br><span class="line">    start zygote_secondary</span><br></pre></td></tr></table></figure>
+
+<p>简单分析这个脚本：</p>
+<p>这个 <code>Actions</code> 拥有两个 <code>Triggers</code>，分别是 <code>zygote-start</code> 和 <code>property:ro.crypto.state=unencrypted</code>，从第二行开始，每一行都是一个 <code>Command</code>。</p>
+<p>当事件 <code>zygote-start</code> 和 <code>property:ro.crypto.state=unencrypted</code> 触发后，<code>Actions</code> 会被加入到待执行队列。在执行到该 <code>Actions</code> 时，会按照 <code>Commands</code> 定义的先后顺序，依次执行 <code>Actions</code> 中的 <code>Commands</code>。</p>
+<h6 id="2-4-4-1-1-2-Triggers"><a href="#2-4-4-1-1-2-Triggers" class="headerlink" title="2.4.4.1.1.2 Triggers"></a>2.4.4.1.1.2 Triggers</h6><p><code>Triggers</code> 是字符串，用于匹配某些类型的事件并触发 <code>Actions</code> 中的 <code>Commands</code>。</p>
+<p>Triggers 可以分为两类：</p>
+<ul>
+<li><p><strong>Event triggers</strong></p>
+<p>事件触发器，这类触发器所匹配的事件由命令 <code>trigger</code>  触发，又或者通过调用 <code>QueueEventTrigger()</code> 函数触发。</p>
+</li>
+<li><p><strong>Property triggers</strong></p>
+<p>属性触发器，这类触发器所匹配的事件是：属性是否满足某个值，形式为 <code>property:&lt;key&gt;=&lt;value&gt;</code>。这里的属性就是之前提到的属性服务管理的属性。</p>
+</li>
+</ul>
+<p>注意，每一个 <code>Actions</code> 可以有多个属性触发器，但只能有一个事件触发器。</p>
+<p>例如：</p>
+<p><code>on init &amp;&amp; property:a=b</code>，<code>on property:a=b &amp;&amp; property:c=d</code> 是合法的。</p>
+<p><code>on boot &amp;&amp; on init</code> 是不合法的。</p>
+<h6 id="2-4-4-1-1-3-Commands"><a href="#2-4-4-1-1-3-Commands" class="headerlink" title="2.4.4.1.1.3 Commands"></a>2.4.4.1.1.3 Commands</h6><p>下面列举一些常见的 <code>Commands</code>：</p>
+<ul>
+<li><p><strong>trigger <event></strong></p>
+<p>触发一个事件。</p>
+</li>
+<li><p><strong>write <path> <content></strong></p>
+<p>按 path 打开文件，往文件中写入内容。</p>
+</li>
+<li><p><strong>chown <owner> <group> <path></strong></p>
+<p>更改文件所有者和组。</p>
+</li>
+<li><p><strong>mkdir <path> [mode] [owner] [group]</strong></p>
+<p>在路径上创建一个目录，可以选择使用给定的权限，所有者，用户组。 </p>
+<p>如果未指定权限，所有者，用户组，则新建的目录默认具有权限 755，并由 root 用户和 root 组拥有。</p>
+<p>当指定权限，所有者，用户组时，如果目录已经存在，则权限，所有者，用户组将被更新。</p>
+</li>
+<li><p><strong>start <service></strong></p>
+<p>当指定的服务未在运行时，启动该服务。</p>
+</li>
+<li><p><strong>exec_start <service></strong></p>
+<p>启动指定的服务，在该命令返回之前暂停处理其他命令。</p>
+</li>
+<li><p><strong>setprop <name> <value></strong></p>
+<p>给系统属性赋值，这里的属性是之前提到的属性服务中的属性。</p>
+</li>
+<li><p><strong>symlink <target> <path></strong></p>
+<p>在 path 上创建一个连接到 target 的符号链接。</p>
+</li>
+</ul>
+<h6 id="2-4-4-1-1-4-Services"><a href="#2-4-4-1-1-4-Services" class="headerlink" title="2.4.4.1.1.4 Services"></a>2.4.4.1.1.4 Services</h6><p><code>Services</code> 是由 init 进程启动的程序，一般运行在 init 进程的一个子进程，因此 init 进程在启动一个 <code>Services</code> 时会通过 fork 的方式生成子进程。</p>
+<p>默认情况下，<code>Services</code> 退出后会重启。</p>
+<p><code>Services</code> 的形式如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">service &lt;name&gt; &lt;pathname&gt; [ &lt;argument&gt; ]*</span><br><span class="line">   &lt;option&gt;</span><br><span class="line">   &lt;option&gt;</span><br><span class="line">   ...</span><br></pre></td></tr></table></figure>
+
+<p>以启动 Zygote 64 位进程的脚本作为示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-system-server</span><br><span class="line">    class main</span><br><span class="line">    priority -20</span><br><span class="line">    user root</span><br><span class="line">    group root readproc reserved_disk</span><br><span class="line">    socket zygote stream 660 root system</span><br><span class="line">    socket usap_pool_primary stream 660 root system</span><br><span class="line">    onrestart write /sys/android_power/request_state wake</span><br><span class="line">    onrestart write /sys/power/state on</span><br><span class="line">    onrestart restart audioserver</span><br><span class="line">    onrestart restart cameraserver</span><br><span class="line">    onrestart restart media</span><br><span class="line">    onrestart restart netd</span><br><span class="line">    onrestart restart wificond</span><br><span class="line">    writepid /dev/cpuset/foreground/tasks</span><br></pre></td></tr></table></figure>
+
+<p>简单分析这个脚本：<code>zygote</code> 是 <code>Services</code> 的名称，<code>/system/bin/app_process64</code> 是可执行文件的路径，<code>-Xzygote /system/bin --zygote --start-system-server</code> 是启动参数，从第二行开始，每一行都是一个 <code>Options</code>。</p>
+<h6 id="2-4-4-1-1-5-Options"><a href="#2-4-4-1-1-5-Options" class="headerlink" title="2.4.4.1.1.5 Options"></a>2.4.4.1.1.5 Options</h6><p><code>Options</code> 是 <code>Services</code> 的配置项，用于控制 init 进程运行 <code>Services</code> 的方式和时间。</p>
+<p> 下面列举一些常见的 <code>Options</code>：</p>
+<ul>
+<li><p><strong>class <name> [ <name>* ]</strong></p>
+<p>指定 <code>Services</code> 的类名。当 <code>Services</code> 所属类开启 (退出) 时，<code>Services</code> 也会开启 (退出) 。默认值为 default。</p>
+</li>
+<li><p><strong>class_start <serviceclass></strong></p>
+<p>启动所有未在运行的，类名被指定为 <code>serviceclass</code> 的 <code>Services</code>。</p>
+</li>
+<li><p><strong>priority <priority></strong></p>
+<p>设置 <code>Services</code> 进程的优先级。取值范围是 -20 ~ 19。默认值为 0。</p>
+</li>
+<li><p><strong>user <username></strong></p>
+<p>设置执行 <code>Services</code> 的用户。一般情况下，默认值为 root。</p>
+</li>
+<li><p><strong>group <groupname> [ <groupname>* ]</strong></p>
+<p>设置执行 <code>Services</code> 的用户组。一般情况下，默认值为 root。</p>
+</li>
+<li><p><strong>socket <name> <type> <perm> [ <user> [ <group> [ <seclabel> ] ] ]</strong></p>
+<p>创建一个 unix 域的 socket，命名为 <code>/dev/socket/&lt;name&gt;</code>，并将 socket 的文件描述符传递给创建的进程。</p>
+</li>
+<li><p><strong>onrestart</strong></p>
+<p>当 <code>Services</code> 重启时执行一个 <code>Commands</code>。</p>
+</li>
+<li><p><strong>oneshot</strong></p>
+<p>当 <code>Services</code> 退出后不再重启。</p>
+</li>
+<li><p><strong>writepid <file> [ <file>* ]</strong></p>
+<p>在进程 fork 之后，将子进程的 pid 写入指定的文件。</p>
+</li>
+</ul>
+<h5 id="2-4-4-1-2-加载-init-rc-脚本"><a href="#2-4-4-1-2-加载-init-rc-脚本" class="headerlink" title="2.4.4.1.2 加载 init.rc 脚本"></a>2.4.4.1.2 加载 init.rc 脚本</h5><p>脚本文件 init.rc 负责系统的初始设置，文件的路径为 <code>system/core/rootdir/init.rc</code>。</p>
+<p>在了解到脚本的编写语法之后，可以知道脚本的内容都是由  <code>Actions</code> 和 <code>Services</code> 构成的，而在 init.rc 脚本中绝大部分都是 <code>Actions</code>。在 [2.4.4.1.1.2] 中曾经提到，调用 <code>QueueEventTrigger()</code> 函数可以触发一个事件，当事件匹配上  <code>Actions</code> 的  <code>Triggers</code>，就会开始执行该 <code>Actions</code>。 接下来回到进程启动的第二阶段，寻找事件的触发点。</p>
+<h6 id="2-4-4-1-2-1-源码中事件的触发点"><a href="#2-4-4-1-2-1-源码中事件的触发点" class="headerlink" title="2.4.4.1.2.1 源码中事件的触发点"></a>2.4.4.1.2.1 源码中事件的触发点</h6><p>回到 init 进程启动的第二阶段，对应源代码 <code>system/core/init/init.cpp</code> 的 SecondStageMain 函数：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">SecondStageMain</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    ActionManager&amp; am = ActionManager::<span class="built_in">GetInstance</span>();</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将触发事件 early-init 的操作加入到 ActionManager</span></span><br><span class="line">    am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;early-init&quot;</span>);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Trigger all the boot actions to get us started.</span></span><br><span class="line">    <span class="comment">// 将触发事件 init 的操作加入到 ActionManager</span></span><br><span class="line">    am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;init&quot;</span>);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Don&#x27;t mount filesystems or start core system services in charger mode.</span></span><br><span class="line">    std::string bootmode = <span class="built_in">GetProperty</span>(<span class="string">&quot;ro.bootmode&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (bootmode == <span class="string">&quot;charger&quot;</span>) &#123;</span><br><span class="line">        <span class="comment">// 如果当前处于充电模式, 则将触发事件 charger 的操作加入到 ActionManager</span></span><br><span class="line">        <span class="comment">// 在充电模式下, 不会挂载文件系统和启动核心系统服务</span></span><br><span class="line">        am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;charger&quot;</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 如果当前处于非充电模式, 则将触发事件 late-init 的操作加入到 ActionManager</span></span><br><span class="line">        am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;late-init&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ActionManager 会按操作加入的顺序逐一执行 [2.4.5.x]，由此可知事件的触发顺序：</p>
+<ul>
+<li>非充电模式：early-init -&gt; init -&gt; late-init</li>
+<li>充电模式：early-init -&gt; init -&gt; charger</li>
+</ul>
+<p>由于在充电模式下，系统可能未完全启动，接下来将选取非充电模式下的流程进行分析。</p>
+<h6 id="2-4-4-1-2-2-init-rc-脚本的执行过程"><a href="#2-4-4-1-2-2-init-rc-脚本的执行过程" class="headerlink" title="2.4.4.1.2.2 init.rc 脚本的执行过程"></a>2.4.4.1.2.2 init.rc 脚本的执行过程</h6><!-- TODO: trigger boot -->
+
+<p>现在结合事件的触发顺序，分析脚本执行过程中的一些关键点：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">on early-init</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    # 以 start 方式启动 ueventd</span><br><span class="line">    start ueventd</span><br><span class="line"></span><br><span class="line">    # 以 exec_start 方式运行 apexd-bootstrap, 在该命令返回之前暂停处理其他命令, 从而保证后续流程中 APEX 的可用性</span><br><span class="line">    exec_start apexd-bootstrap</span><br><span class="line"></span><br><span class="line">on init</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    # 以 start 方式启动基本服务</span><br><span class="line">    # 启动 servicemanager [2.4.4.1.2.3]</span><br><span class="line">    start servicemanager</span><br><span class="line">    start hwservicemanager</span><br><span class="line">    start vndservicemanager</span><br><span class="line"></span><br><span class="line"># 挂载文件和启动核心系统服务</span><br><span class="line"># 其中 trigger 用于触发一个事件 [2.4.4.1.1.2]</span><br><span class="line">on late-init</span><br><span class="line">    trigger early-fs</span><br><span class="line">    trigger fs</span><br><span class="line">    trigger post-fs</span><br><span class="line">    trigger late-fs</span><br><span class="line">    trigger post-fs-data</span><br><span class="line">    trigger load_persist_props_action</span><br><span class="line"></span><br><span class="line">    # 触发事件 zygote-start, 启动 zygote [2.4.4.1.2.4]</span><br><span class="line">    trigger zygote-start</span><br><span class="line"></span><br><span class="line">    trigger firmware_mounts_complete</span><br><span class="line">    trigger early-boot</span><br><span class="line">    trigger boot</span><br></pre></td></tr></table></figure>
+
+<p>经过分析，现在已经大致了解脚本的执行过程，接下来分析 servicemanager 和 zygote 的启动。</p>
+<h6 id="2-4-4-1-2-3-启动-servicemanager"><a href="#2-4-4-1-2-3-启动-servicemanager" class="headerlink" title="2.4.4.1.2.3 启动 servicemanager"></a>2.4.4.1.2.3 启动 servicemanager</h6><p>servicemanager 启动脚本的路径为 <code>frameworks/native/cmds/servicemanager/servicemanager.rc</code>，分析这个脚本：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"># servicemanager 是 Services 的名称</span><br><span class="line"># /system/bin/servicemanager 是可执行文件的路径</span><br><span class="line">service servicemanager /system/bin/servicemanager</span><br><span class="line">    # 指定类名为 core 和 animation</span><br><span class="line">    # 当 core 或者 animation 开启 (关闭) 时, servicemanager 也将开启 (关闭)</span><br><span class="line">    class core animation</span><br><span class="line"></span><br><span class="line">    # 设置用户为 system</span><br><span class="line">    user system</span><br><span class="line"></span><br><span class="line">    # 设置用户组为 system 和 readproc</span><br><span class="line">    group system readproc</span><br><span class="line"></span><br><span class="line">    # 将其标记为设备的关键服务</span><br><span class="line">    # 如果此服务在规定时间内不断重启, 则设备会重启并进入 bootloader</span><br><span class="line">    critical</span><br><span class="line"></span><br><span class="line">    # 设置服务重启后执行的操作</span><br><span class="line">    # 每一个操作都是一个 Commands</span><br><span class="line">    onrestart restart healthd</span><br><span class="line">    onrestart restart zygote</span><br><span class="line">    onrestart restart audioserver</span><br><span class="line">    onrestart restart media</span><br><span class="line">    onrestart restart surfaceflinger</span><br><span class="line">    onrestart restart inputflinger</span><br><span class="line">    onrestart restart drm</span><br><span class="line">    onrestart restart cameraserver</span><br><span class="line">    onrestart restart keystore</span><br><span class="line">    onrestart restart gatekeeperd</span><br><span class="line">    onrestart restart thermalservice</span><br><span class="line"></span><br><span class="line">    # 在进程执行 fork 操作之后，将子进程的 pid 写入文件 /dev/cpuset/system-background/tasks</span><br><span class="line">    writepid /dev/cpuset/system-background/tasks</span><br><span class="line"></span><br><span class="line">    # 设置服务的关闭行为</span><br><span class="line">    # shutdown critical 表示此服务在关闭期间不会被杀死, 当关闭超时后才会被杀死</span><br><span class="line">    shutdown critical</span><br></pre></td></tr></table></figure>
+
+<p>启动 servicemanager 之后，便会进入 <code>frameworks/native/cmds/servicemanager/service_manager.c</code> 的 main 函数。</p>
+<h6 id="2-4-4-1-2-4-启动-zygote"><a href="#2-4-4-1-2-4-启动-zygote" class="headerlink" title="2.4.4.1.2.4 启动 zygote"></a>2.4.4.1.2.4 启动 zygote</h6><p>在 init.rc 脚本中，事件 <code>zygote-start</code> 有 3 个对应的 <code>Actions</code>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">on zygote-start &amp;&amp; property:ro.crypto.state=unencrypted</span><br><span class="line">    exec_start update_verifier_nonencrypted</span><br><span class="line">    start netd</span><br><span class="line">    start zygote</span><br><span class="line">    start zygote_secondary</span><br><span class="line"></span><br><span class="line">on zygote-start &amp;&amp; property:ro.crypto.state=unsupported</span><br><span class="line">    exec_start update_verifier_nonencrypted</span><br><span class="line">    start netd</span><br><span class="line">    start zygote</span><br><span class="line">    start zygote_secondary</span><br><span class="line"></span><br><span class="line">on zygote-start &amp;&amp; property:ro.crypto.state=encrypted &amp;&amp; property:ro.crypto.type=file</span><br><span class="line">    exec_start update_verifier_nonencrypted</span><br><span class="line">    start netd</span><br><span class="line">    start zygote</span><br><span class="line">    start zygote_secondary</span><br></pre></td></tr></table></figure>
+
+<p>其中，zygote 通过以下语句导入：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">import /init.$&#123;ro.zygote&#125;.rc</span><br></pre></td></tr></table></figure>
+
+<p>此语句会根据属性 <code>ro.zygote</code>，导入相应的文件，其中包括：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">system/core/rootdir/init.zygote32.rc</span><br><span class="line">system/core/rootdir/init.zygote32_64.rc</span><br><span class="line">system/core/rootdir/init.zygote64.rc</span><br><span class="line">system/core/rootdir/init.zygote64_32.rc</span><br></pre></td></tr></table></figure>
+
+<p>zygote 的启动除了依赖事件 <code>zygote-start</code> 以外，还需要某些属性满足特定的值。当上面列出的三个 <code>Actions</code> 中的其中一个满足条件后，便会启动 zygote。</p>
+<p>这里分析启动 Zygote 64 位进程的脚本，脚本文件的路径为 <code>system/core/rootdir/init.zygote64.rc</code>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"># zygote 是 Services 的名称</span><br><span class="line"># /system/bin/app_process64 是可执行文件的路径</span><br><span class="line"># -Xzygote /system/bin --zygote --start-system-server 是启动参数</span><br><span class="line">service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-system-server</span><br><span class="line">    # 指定类名为 main</span><br><span class="line">    # 当 main 开启 (关闭) 时, zygote 也将开启 (关闭)</span><br><span class="line">    class main</span><br><span class="line"></span><br><span class="line">    # 进程优先级为 -20</span><br><span class="line">    # 由于优先级的取值范围是 -20 ~ 19, 数值越小, 优先级越高, 因此 zygote 进程拥有最高的优先级</span><br><span class="line">    priority -20</span><br><span class="line"></span><br><span class="line">    # 用户和用户组都是 root</span><br><span class="line">    user root</span><br><span class="line">    group root readproc reserved_disk</span><br><span class="line"></span><br><span class="line">    # 创建 socket</span><br><span class="line">    socket zygote stream 660 root system</span><br><span class="line">    socket usap_pool_primary stream 660 root system</span><br><span class="line"></span><br><span class="line">    # 设置服务重启后执行的操作</span><br><span class="line">    # 每一个操作都是一个 Commands</span><br><span class="line">    onrestart write /sys/android_power/request_state wake</span><br><span class="line">    onrestart write /sys/power/state on</span><br><span class="line">    onrestart restart audioserver</span><br><span class="line">    onrestart restart cameraserver</span><br><span class="line">    onrestart restart media</span><br><span class="line">    onrestart restart netd</span><br><span class="line">    onrestart restart wificond</span><br><span class="line"></span><br><span class="line">    # 在 zygote 进程执行 fork 操作之后，将子进程的 pid 写入文件 /dev/cpuset/foreground/tasks</span><br><span class="line">    writepid /dev/cpuset/foreground/tasks</span><br></pre></td></tr></table></figure>
+
+<p>启动 zygote 之后，便会进入 <code>frameworks/base/cmds/app_process/app_main.cpp</code> 的 main 函数。</p>
+<h3 id="2-4-5-进入无限循环状态"><a href="#2-4-5-进入无限循环状态" class="headerlink" title="2.4.5 进入无限循环状态"></a>2.4.5 进入无限循环状态</h3><p>init 进程启动完成之后，进程就会一直存活，而保持存活的方法就是进入无限循环状态。接下来分析这个过程，源代码的路径为 <code>system/core/init/init.cpp</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">SecondStageMain</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">        <span class="comment">// 设置等待 epoll 事件的超时时长</span></span><br><span class="line">        <span class="comment">// 默认情况下会一直处于阻塞状态, 直到有事件发生, 此时 epoll_timeout 取值为 -1</span></span><br><span class="line">        <span class="keyword">auto</span> epoll_timeout = std::optional&lt;std::chrono::milliseconds&gt;&#123;&#125;;</span><br><span class="line"></span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!(waiting_for_prop || Service::<span class="built_in">is_exec_service_running</span>())) &#123;</span><br><span class="line">            <span class="comment">// am 是一个引用, 指向 ActionManager 实例</span></span><br><span class="line">            <span class="comment">// 按顺序执行 ActionManager 中的一个命令 [2.4.5.1]</span></span><br><span class="line">            am.<span class="built_in">ExecuteOneCommand</span>();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (!(waiting_for_prop || Service::<span class="built_in">is_exec_service_running</span>())) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!shutting_down) &#123;</span><br><span class="line">                <span class="comment">// 获取下一次 HandleProcessActions 的时间点 [2.4.5.2]</span></span><br><span class="line">                <span class="keyword">auto</span> next_process_action_time = <span class="built_in">HandleProcessActions</span>();</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (next_process_action_time) &#123;</span><br><span class="line">                    <span class="comment">// 计算出 next_process_action_time 与当前时间的差值</span></span><br><span class="line">                    epoll_timeout = std::chrono::<span class="built_in">ceil</span>&lt;std::chrono::milliseconds&gt;(</span><br><span class="line">                            *next_process_action_time - boot_clock::<span class="built_in">now</span>());</span><br><span class="line"></span><br><span class="line">                    <span class="comment">// 如果差值小于 0, 说明需要立即进行下一次的循环</span></span><br><span class="line">                    <span class="comment">// 设置等待 epoll 事件的超时时长为 0, 会使得接下来的 Wait 调用会立即返回, 不阻塞进程</span></span><br><span class="line">                    <span class="keyword">if</span> (*epoll_timeout &lt; <span class="number">0</span>ms) epoll_timeout = <span class="number">0</span>ms;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 如果 ActionManager 中仍有待执行的命令, 那么 init 进程不会进入阻塞状态, 并立即再次唤起</span></span><br><span class="line">            <span class="comment">// 设置等待 epoll 事件的超时时长为 0, 会使得接下来的 Wait 调用会立即返回, 不阻塞进程</span></span><br><span class="line">            <span class="keyword">if</span> (am.<span class="built_in">HasMoreCommands</span>()) epoll_timeout = <span class="number">0</span>ms;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 调用 Wait 函数, 等待事件触发 [2.4.1.3]</span></span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">auto</span> result = epoll.<span class="built_in">Wait</span>(epoll_timeout); !result) &#123;</span><br><span class="line">            <span class="built_in">LOG</span>(ERROR) &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>经分析可知，init 进程进入循环状态后主要的工作有 3 个：</p>
+<ul>
+<li>执行 ActionManager 中的命令。</li>
+<li>重启服务。</li>
+<li>等待 epoll 事件，当事件触发后，调用相应的函数进行处理。结合前面的分析，可知等待的事件有：一个进程通过请求 init 进程向属性服务写入属性，以及 init 进程接收到 <code>SIGCHLD</code> 信号。</li>
+</ul>
+<h4 id="2-4-5-1-ActionManager"><a href="#2-4-5-1-ActionManager" class="headerlink" title="2.4.5.1 ActionManager"></a>2.4.5.1 ActionManager</h4><!-- TODO: 什么是 Action? -->
+
+<!-- TODO: Action 和脚本中的 Actions 有没有关系 -->
+
+<!-- TODO: 添加和执行过程 -->
+
+<p>ActionManager 是 Action 的管理器，它提供了对 Action 的添加、执行、清空等操作。</p>
+<h5 id="2-4-5-1-1-添加-Action"><a href="#2-4-5-1-1-添加-Action" class="headerlink" title="2.4.5.1.1 添加 Action"></a>2.4.5.1.1 添加 Action</h5><!-- TODO: 详细分析 Action 的作用 -->
+
+<p>在 init 进程启动的第二阶段中添加了一些 Action，简单看下其中部分 Action 的作用：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">SecondStageMain</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>** argv)</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// am 是一个引用, 指向 ActionManager 实例</span></span><br><span class="line">    ActionManager&amp; am = ActionManager::<span class="built_in">GetInstance</span>();</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(SetupCgroupsAction, <span class="string">&quot;SetupCgroups&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加 Action: 触发事件 early-init [2.4.4.1.2.1]</span></span><br><span class="line">    am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;early-init&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加 Action: 等待 coldboot 完成</span></span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(wait_for_coldboot_done_action, <span class="string">&quot;wait_for_coldboot_done&quot;</span>);</span><br><span class="line"></span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(MixHwrngIntoLinuxRngAction, <span class="string">&quot;MixHwrngIntoLinuxRng&quot;</span>);</span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(SetMmapRndBitsAction, <span class="string">&quot;SetMmapRndBits&quot;</span>);</span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(SetKptrRestrictAction, <span class="string">&quot;SetKptrRestrict&quot;</span>);</span><br><span class="line">    Keychords keychords;</span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(</span><br><span class="line">        [&amp;epoll, &amp;keychords](<span class="type">const</span> BuiltinArguments&amp; args) -&gt; Result&lt;Success&gt; &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">const</span> <span class="keyword">auto</span>&amp; svc : ServiceList::<span class="built_in">GetInstance</span>()) &#123;</span><br><span class="line">                keychords.<span class="built_in">Register</span>(svc-&gt;<span class="built_in">keycodes</span>());</span><br><span class="line">            &#125;</span><br><span class="line">            keychords.<span class="built_in">Start</span>(&amp;epoll, HandleKeychord);</span><br><span class="line">            <span class="keyword">return</span> <span class="built_in">Success</span>();</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="string">&quot;KeychordInit&quot;</span>);</span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(console_init_action, <span class="string">&quot;console_init&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加 Action: 触发事件 init [2.4.4.1.2.1]</span></span><br><span class="line">    am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;init&quot;</span>);</span><br><span class="line"></span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(StartBoringSslSelfTest, <span class="string">&quot;StartBoringSslSelfTest&quot;</span>);</span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(MixHwrngIntoLinuxRngAction, <span class="string">&quot;MixHwrngIntoLinuxRng&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加 Action: 为 init 进程初始化 binder</span></span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(InitBinder, <span class="string">&quot;InitBinder&quot;</span>);</span><br><span class="line"></span><br><span class="line">    std::string bootmode = <span class="built_in">GetProperty</span>(<span class="string">&quot;ro.bootmode&quot;</span>, <span class="string">&quot;&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (bootmode == <span class="string">&quot;charger&quot;</span>) &#123;</span><br><span class="line">        <span class="comment">// 在充电模式下, 添加 Action: 触发事件 charger [2.4.4.1.2.1]</span></span><br><span class="line">        am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;charger&quot;</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 否则, 添加 Action: 触发事件 late-init [2.4.4.1.2.1]</span></span><br><span class="line">        am.<span class="built_in">QueueEventTrigger</span>(<span class="string">&quot;late-init&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加 Action: 触发当前所有的属性触发器</span></span><br><span class="line">    am.<span class="built_in">QueueBuiltinAction</span>(queue_property_triggers_action, <span class="string">&quot;queue_property_triggers&quot;</span>);</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此外，在解析脚本或者属性值改变的时候，也会使用 ActionManager 添加 Action。</p>
+<h4 id="2-4-5-2-分析-HandleProcessActions-函数"><a href="#2-4-5-2-分析-HandleProcessActions-函数" class="headerlink" title="2.4.5.2 分析 HandleProcessActions 函数"></a>2.4.5.2 分析 HandleProcessActions 函数</h4><!-- ((s->flags() & SVC_RUNNING) && s->timeout_period()) -->
+
+<!-- 详细分析 service 的重启过程 -->
+
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> std::optional&lt;boot_clock::time_point&gt; <span class="title">HandleProcessActions</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::optional&lt;boot_clock::time_point&gt; next_process_action_time;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 遍历 ServiceList</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">const</span> <span class="keyword">auto</span>&amp; s : ServiceList::<span class="built_in">GetInstance</span>()) &#123;</span><br><span class="line">        <span class="comment">// 判断服务是否处于运行中状态, 以及是否有超时时长</span></span><br><span class="line">        <span class="keyword">if</span> ((s-&gt;<span class="built_in">flags</span>() &amp; SVC_RUNNING) &amp;&amp; s-&gt;<span class="built_in">timeout_period</span>()) &#123;</span><br><span class="line">            <span class="comment">// 计算出服务启动的超时时间</span></span><br><span class="line">            <span class="keyword">auto</span> timeout_time = s-&gt;<span class="built_in">time_started</span>() + *s-&gt;<span class="built_in">timeout_period</span>();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (boot_clock::<span class="built_in">now</span>() &gt; timeout_time) &#123;</span><br><span class="line">                <span class="comment">// 如果当前时间已大于服务启动的超时时间, 说明服务启动已超时</span></span><br><span class="line">                s-&gt;<span class="built_in">Timeout</span>();</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="comment">// 更新 next_process_action_time</span></span><br><span class="line">                <span class="comment">// 此时, next_process_action_time 表示最近的, 需要检查服务是否启动成功的时间点</span></span><br><span class="line">                <span class="keyword">if</span> (!next_process_action_time || timeout_time &lt; *next_process_action_time) &#123;</span><br><span class="line">                    next_process_action_time = timeout_time;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 如果服务不带有标志位 SVC_RESTARTING, 则不需要重启, 继续 for 循环</span></span><br><span class="line">        <span class="keyword">if</span> (!(s-&gt;<span class="built_in">flags</span>() &amp; SVC_RESTARTING)) <span class="keyword">continue</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 计算出服务启动的超时时间</span></span><br><span class="line">        <span class="keyword">auto</span> restart_time = s-&gt;<span class="built_in">time_started</span>() + s-&gt;<span class="built_in">restart_period</span>();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 现在服务需要重启, 接下来重启已满足重启条件的服务</span></span><br><span class="line">        <span class="keyword">if</span> (boot_clock::<span class="built_in">now</span>() &gt; restart_time) &#123;</span><br><span class="line">            <span class="comment">// 如果当前时间已大于服务的重启时间, 那么立即启动服务</span></span><br><span class="line">            <span class="keyword">if</span> (<span class="keyword">auto</span> result = s-&gt;<span class="built_in">Start</span>(); !result) &#123;</span><br><span class="line">                <span class="built_in">LOG</span>(ERROR) &lt;&lt; <span class="string">&quot;Could not restart process &#x27;&quot;</span> &lt;&lt; s-&gt;<span class="built_in">name</span>() &lt;&lt; <span class="string">&quot;&#x27;: &quot;</span> &lt;&lt; result.<span class="built_in">error</span>();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 更新 next_process_action_time</span></span><br><span class="line">            <span class="comment">// 此时, next_process_action_time 表示最近的, 需要对服务进行重启操作的时间点</span></span><br><span class="line">            <span class="keyword">if</span> (!next_process_action_time || restart_time &lt; *next_process_action_time) &#123;</span><br><span class="line">                next_process_action_time = restart_time;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> next_process_action_time;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此函数的工作有：</p>
+<ol>
+<li>检查带有标志位 <code>SVC_RUNNING</code> 的服务是否超时，如果服务启动超时，则调用 <code>Timeout</code> 函数，否则更新下次检查的时间点。</li>
+<li>当服务带有标志位 <code>SVC_RESTARTING</code> 时，说明服务需要重启。如果当前时间已大于服务的重启时间，则立即重启服务；否则，更新下次重启的时间点。 </li>
+</ol>
+<p>经分析可知，<code>next_process_action_time</code> 可能表示下一次的检查服务是否启动超时的时间点，也可能表示下一次为某个服务重启的时间点。</p>
+<p>注意到，在之前的分析信号 [2.4.3.1.4.3] 提到过，当 init 收到子进程终结的信号之后，会为有重启需要的服务添加标志位 <code>SVC_RESTARTING</code>。那么现在可以知道，在 init 进程进入无限循环状态后，就会处理这些带有标志位 <code>SVC_RESTARTING</code> 的服务，重启满足条件的服务。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="http://gityuan.com/2016/02/01/android-booting/">Android系统启动-综述</a></p>
+<p><a target="_blank" rel="noopener" href="http://gityuan.com/2016/02/05/android-init/">Android系统启动-Init篇</a></p>
+<p><a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man7/epoll.7.html">epoll(7)</a></p>
+<p><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Signal_(IPC)">Signal</a></p>
+<p><a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man7/signal.7.html">signal(7)</a></p>
+<p><a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/wait.2.html">wait(2)</a></p>
+<p><a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/signalfd.2.html">signalfd(2)</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-%E5%89%8D%E8%A8%80"><span class="nav-text">1. 前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B"><span class="nav-text">2. 启动流程</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-init-%E8%BF%9B%E7%A8%8B%E7%9A%84%E5%85%A5%E5%8F%A3"><span class="nav-text">2.1 init 进程的入口</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-%E5%90%AF%E5%8A%A8%E7%9A%84%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5"><span class="nav-text">2.2 启动的第一阶段</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-1-%E8%AE%BE%E7%BD%AE%E6%96%87%E4%BB%B6%E6%88%96%E7%9B%AE%E5%BD%95%E7%9A%84%E6%9D%83%E9%99%90"><span class="nav-text">2.2.1 设置文件或目录的权限</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-1-1-%E7%AC%A6%E5%8F%B7%E8%A1%A8%E7%A4%BA%E6%B3%95"><span class="nav-text">2.2.1.1 符号表示法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-1-2-%E6%95%B0%E5%AD%97%E8%A1%A8%E7%A4%BA%E6%B3%95"><span class="nav-text">2.2.1.2 数字表示法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-1-3-%E5%88%86%E6%9E%90%E6%BA%90%E7%A0%81%E4%B8%AD%E7%9A%84%E6%9D%83%E9%99%90%E8%AE%BE%E7%BD%AE"><span class="nav-text">2.2.1.3 分析源码中的权限设置</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3-%E5%88%9D%E5%A7%8B%E5%8C%96-SELinux"><span class="nav-text">2.3 初始化 SELinux</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-4-%E5%90%AF%E5%8A%A8%E7%9A%84%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5"><span class="nav-text">2.4 启动的第二阶段</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-1-epoll"><span class="nav-text">2.4.1 epoll</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-1-1-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="nav-text">2.4.1.1 初始化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-1-2-%E4%BD%BF%E7%94%A8-epoll-%E7%9B%91%E5%90%AC%E6%96%87%E4%BB%B6%E6%8F%8F%E8%BF%B0%E7%AC%A6"><span class="nav-text">2.4.1.2 使用 epoll 监听文件描述符</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-1-2-1-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-epoll-ctl"><span class="nav-text">2.4.1.2.1 系统调用 epoll_ctl</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-1-2-1-1-%E5%8F%82%E6%95%B0"><span class="nav-text">2.4.1.2.1.1 参数</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-1-2-1-2-%E8%BF%94%E5%9B%9E%E5%80%BC"><span class="nav-text">2.4.1.2.1.2 返回值</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-1-2-2-%E5%88%86%E6%9E%90-RegisterHandler-%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.1.2.2 分析 RegisterHandler 函数</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-1-3-%E7%AD%89%E5%BE%85%E4%BA%8B%E4%BB%B6%E8%A7%A6%E5%8F%91"><span class="nav-text">2.4.1.3 等待事件触发</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-1-3-1-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-epoll-wait"><span class="nav-text">2.4.1.3.1 系统调用 epoll_wait</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-1-3-1-1-%E5%8F%82%E6%95%B0"><span class="nav-text">2.4.1.3.1.1 参数</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-1-3-1-2-%E8%BF%94%E5%9B%9E%E5%80%BC"><span class="nav-text">2.4.1.3.1.2 返回值</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-1-3-2-%E5%88%86%E6%9E%90-Wait-%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.1.3.2 分析 Wait 函数</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-2-%E5%B1%9E%E6%80%A7%E6%9C%8D%E5%8A%A1"><span class="nav-text">2.4.2 属性服务</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-2-1-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="nav-text">2.4.2.1 初始化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-2-2-%E5%90%AF%E5%8A%A8"><span class="nav-text">2.4.2.2 启动</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-2-3-%E5%9B%9E%E8%B0%83%E5%87%BD%E6%95%B0-handle-property-set-fd"><span class="nav-text">2.4.2.3 回调函数 handle_property_set_fd</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-3-%E4%BF%A1%E5%8F%B7"><span class="nav-text">2.4.3 信号</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-3-1-%E5%A4%84%E7%90%86%E4%BF%A1%E5%8F%B7"><span class="nav-text">2.4.3.1 处理信号</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-3-1-1-%E4%BF%A1%E5%8F%B7%E7%9A%84%E5%A4%84%E7%90%86%E6%96%B9%E5%BC%8F"><span class="nav-text">2.4.3.1.1 信号的处理方式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-3-1-2-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-sigaction"><span class="nav-text">2.4.3.1.2 系统调用 sigaction</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-2-1-%E5%8F%82%E6%95%B0"><span class="nav-text">2.4.3.1.2.1 参数</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-2-2-%E8%BF%94%E5%9B%9E%E5%80%BC"><span class="nav-text">2.4.3.1.2.2 返回值</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-3-1-3-init-%E8%BF%9B%E7%A8%8B%E6%B3%A8%E5%86%8C%E4%BF%A1%E5%8F%B7%E5%A4%84%E7%90%86%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.3.1.3 init 进程注册信号处理函数</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-3-1-%E5%8F%91%E8%B5%B7%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-sigaction"><span class="nav-text">2.4.3.1.3.1 发起系统调用 sigaction</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-3-2-%E7%9B%91%E5%90%AC-signal-%E6%96%87%E4%BB%B6%E6%8F%8F%E8%BF%B0%E7%AC%A6"><span class="nav-text">2.4.3.1.3.2 监听 signal 文件描述符</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-3-1-4-%E5%9B%9E%E8%B0%83%E5%87%BD%E6%95%B0-HandleSignalFd"><span class="nav-text">2.4.3.1.4 回调函数 HandleSignalFd</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-4-1-%E5%88%86%E6%9E%90-ReapAnyOutstandingChildren-%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.3.1.4.1 分析 ReapAnyOutstandingChildren 函数</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-4-2-%E5%88%86%E6%9E%90-ReapOneProcess-%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.3.1.4.2 分析 ReapOneProcess 函数</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-4-3-%E5%88%86%E6%9E%90-Reap-%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.3.1.4.3 分析 Reap 函数</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-3-1-4-4-%E5%88%86%E6%9E%90-NotifyStateChange-%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.3.1.4.4 分析 NotifyStateChange 函数</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-4-%E5%8A%A0%E8%BD%BD%E5%90%AF%E5%8A%A8%E8%84%9A%E6%9C%AC"><span class="nav-text">2.4.4 加载启动脚本</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-4-1-init-rc-%E8%84%9A%E6%9C%AC"><span class="nav-text">2.4.4.1 init.rc 脚本</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-4-1-1-Android-Init-Language"><span class="nav-text">2.4.4.1.1 Android Init Language</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-1-1-Actions"><span class="nav-text">2.4.4.1.1.1 Actions</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-1-2-Triggers"><span class="nav-text">2.4.4.1.1.2 Triggers</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-1-3-Commands"><span class="nav-text">2.4.4.1.1.3 Commands</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-1-4-Services"><span class="nav-text">2.4.4.1.1.4 Services</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-1-5-Options"><span class="nav-text">2.4.4.1.1.5 Options</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-4-1-2-%E5%8A%A0%E8%BD%BD-init-rc-%E8%84%9A%E6%9C%AC"><span class="nav-text">2.4.4.1.2 加载 init.rc 脚本</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-2-1-%E6%BA%90%E7%A0%81%E4%B8%AD%E4%BA%8B%E4%BB%B6%E7%9A%84%E8%A7%A6%E5%8F%91%E7%82%B9"><span class="nav-text">2.4.4.1.2.1 源码中事件的触发点</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-2-2-init-rc-%E8%84%9A%E6%9C%AC%E7%9A%84%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B"><span class="nav-text">2.4.4.1.2.2 init.rc 脚本的执行过程</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-2-3-%E5%90%AF%E5%8A%A8-servicemanager"><span class="nav-text">2.4.4.1.2.3 启动 servicemanager</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2-4-4-1-2-4-%E5%90%AF%E5%8A%A8-zygote"><span class="nav-text">2.4.4.1.2.4 启动 zygote</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-5-%E8%BF%9B%E5%85%A5%E6%97%A0%E9%99%90%E5%BE%AA%E7%8E%AF%E7%8A%B6%E6%80%81"><span class="nav-text">2.4.5 进入无限循环状态</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-5-1-ActionManager"><span class="nav-text">2.4.5.1 ActionManager</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-4-5-1-1-%E6%B7%BB%E5%8A%A0-Action"><span class="nav-text">2.4.5.1.1 添加 Action</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-5-2-%E5%88%86%E6%9E%90-HandleProcessActions-%E5%87%BD%E6%95%B0"><span class="nav-text">2.4.5.2 分析 HandleProcessActions 函数</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-text">参考</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="HASSH"
+      src="/images/blog-avatar.jpg">
+  <p class="site-author-name" itemprop="name">HASSH</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">Posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">Categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">Tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:13221419330@163.com" title="E-Mail → mailto:13221419330@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://github.com/hasssssssh" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;hasssssssh" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="far fa-grin-beam-sweat"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">HASSH</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  <link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fas fa-user-secret"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"><i class="fa fa-spinner fa-spin"></i></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"><i class="fa fa-spinner fa-spin"></i></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : true,
+      appId      : '41lBWdYuXnhdDKFaUIf8AN1r-9Nh9j0Va',
+      appKey     : 'soqJFEybNEksJwEYyabXRXUb',
+      placeholder: "欢迎你的留言！本博客已开启留言提醒，我将会及时回复每一条友善的留言！",
+      avatar     : 'wavatar',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
