@@ -20,7 +20,34 @@
   </url>
   
   <url>
-    <loc>https://hasssssssh.github.io/jni-specification-notes/</loc>
+    <loc>https://hasssssssh.github.io/csharp/asynchronous-programming/</loc>
+    
+    <lastmod>2024-08-14</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://hasssssssh.github.io/csharp/unsafe-code/</loc>
+    
+    <lastmod>2024-08-14</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://hasssssssh.github.io/csharp/fundamentals/</loc>
+    
+    <lastmod>2024-08-09</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://hasssssssh.github.io/android/exploring-init-process-startup-process/</loc>
     
     <lastmod>2021-12-14</lastmod>
     
@@ -29,7 +56,7 @@
   </url>
   
   <url>
-    <loc>https://hasssssssh.github.io/exploring-init-process-startup-process/</loc>
+    <loc>https://hasssssssh.github.io/java/jni-specification-notes/</loc>
     
     <lastmod>2021-12-14</lastmod>
     
@@ -47,7 +74,7 @@
   </url>
   
   <url>
-    <loc>https://hasssssssh.github.io/elementary-function/</loc>
+    <loc>https://hasssssssh.github.io/math/elementary-function/</loc>
     
     <lastmod>2021-03-27</lastmod>
     
@@ -56,7 +83,7 @@
   </url>
   
   <url>
-    <loc>https://hasssssssh.github.io/android-sync-barrier/</loc>
+    <loc>https://hasssssssh.github.io/android/sync-barrier/</loc>
     
     <lastmod>2021-03-24</lastmod>
     
@@ -99,14 +126,28 @@
 
   
   <url>
-    <loc>https://hasssssssh.github.io/categories/Mathematics/</loc>
+    <loc>https://hasssssssh.github.io/categories/Android/</loc>
     <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://hasssssssh.github.io/categories/Android/</loc>
+    <loc>https://hasssssssh.github.io/categories/C/</loc>
+    <lastmod>2024-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://hasssssssh.github.io/categories/Java/</loc>
+    <lastmod>2024-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://hasssssssh.github.io/categories/Mathematics/</loc>
     <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -121,13 +162,6 @@
   
   <url>
     <loc>https://hasssssssh.github.io/categories/Android/Framework/Handler/</loc>
-    <lastmod>2024-08-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://hasssssssh.github.io/categories/Java/</loc>
     <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
