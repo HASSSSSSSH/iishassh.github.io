@@ -11,9 +11,9 @@ categories:
 
 这篇文章是本人在学习 C# 基础知识过程中所作的笔记。
 
-我的主要学习来源是 Microsoft 的 C# 文档，但该文档上的知识点比较松散，于是我对重要的基础知识进行整理和汇总，按章节罗列知识点，而参考链接在各个章节的开头列出。
+学习资源的主要来源是 Microsoft 的 C# 文档，但是文档上的知识点比较松散，于是我对重点知识进行整理和汇总，按章节罗列知识点，而参考链接在各个章节的开头列出。
 
-另外，为了加深理解，我为大多数知识点编写了示例，可在 Github 项目 [Learn-CSharp](https://github.com/HASSSSSSSH/Learn-CSharp) 上查看。
+另外，为了加深理解，我为大多数知识点编写了代码示例，可在 Github 项目 [Learn-CSharp](https://github.com/HASSSSSSSH/Learn-CSharp) 上查看。
 
 
 
