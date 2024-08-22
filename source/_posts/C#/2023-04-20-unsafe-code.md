@@ -1,11 +1,23 @@
 ---
 title: C# 不安全代码
 date: 2023-04-20
-updated: 2024-08-15
+updated: 2024-08-23
 permalink: /csharp/unsafe-code/
 categories:
 - [C#]
 ---
+
+# 0. 前言
+
+这篇文章是本人在学习 C# 不安全代码过程中所作的笔记。
+
+学习资源的来源是 Microsoft 的 C# 文档，参考链接在各个章节的开头列出。
+
+另外，为了加深理解，我编写了一些关于 C# 不安全代码的示例，可在 Github 项目 [Learn-CSharp](https://github.com/HASSSSSSSH/Learn-CSharp) 上查看。
+
+
+
+<!-- more -->
 
 # 1. 不安全代码
 
@@ -24,8 +36,6 @@ C# 支持 [`unsafe`](https://learn.microsoft.com/en-us/dotnet/csharp/language-re
 - 必须使用 [AllowUnsafeBlocks](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/language#allowunsafeblocks) 编译器选项来编译包含不安全块的代码。
 
 
-
-<!-- more -->
 
 ## 1.1 指针类型
 
