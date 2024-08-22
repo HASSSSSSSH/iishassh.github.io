@@ -181,7 +181,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="修改时间：2024-08-15 00:00:00" itemprop="dateModified" datetime="2024-08-15T00:00:00+08:00">2024-08-15</time>
+                <time title="修改时间：2024-08-23 00:00:00" itemprop="dateModified" datetime="2024-08-23T00:00:00+08:00">2024-08-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -206,19 +206,9 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="1-不安全代码"><a href="#1-不安全代码" class="headerlink" title="1. 不安全代码"></a>1. 不安全代码</h1><blockquote>
-<p><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/unsafe-code">https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/unsafe-code</a></p>
-</blockquote>
-<p>编写的大部分 C# 代码都是可验证的安全代码。可验证的安全代码是指 .NET 工具可验证代码是否安全。通常，安全代码不会直接使用指针访问内存，也不会分配原始内存，而是创建托管对象。</p>
-<p>C# 支持 <a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/unsafe"><code>unsafe</code></a> 上下文，可以在其中编写不可验证的代码。在 <code>unsafe</code> 上下文中，代码可使用指针、分配和释放内存块，以及使用函数指针调用方法。C# 中的不安全代码不一定是危险的，它只是其安全性不可验证的代码。</p>
-<p>不安全代码具有以下属性：</p>
-<ul>
-<li>可将方法、类型和代码块定义为不安全。</li>
-<li>在某些情况下，通过移除数组绑定检查，不安全代码可提高应用程序的性能。</li>
-<li>调用需要指针的本地函数时，需使用不安全代码。</li>
-<li>使用不安全代码将引发安全风险和稳定性风险。</li>
-<li>必须使用 <a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/language#allowunsafeblocks">AllowUnsafeBlocks</a> 编译器选项来编译包含不安全块的代码。</li>
-</ul>
+          <h1 id="0-前言"><a href="#0-前言" class="headerlink" title="0. 前言"></a>0. 前言</h1><p>这篇文章是本人在学习 C# 不安全代码过程中所作的笔记。</p>
+<p>学习资源的来源是 Microsoft 的 C# 文档，参考链接在各个章节的开头列出。</p>
+<p>另外，为了加深理解，我编写了一些关于 C# 不安全代码的示例，可在 Github 项目 <a target="_blank" rel="noopener" href="https://github.com/HASSSSSSSH/Learn-CSharp">Learn-CSharp</a> 上查看。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/csharp/unsafe-code/#more" rel="contents">
@@ -268,7 +258,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="修改时间：2024-08-15 00:00:00" itemprop="dateModified" datetime="2024-08-15T00:00:00+08:00">2024-08-15</time>
+                <time title="修改时间：2024-08-23 00:00:00" itemprop="dateModified" datetime="2024-08-23T00:00:00+08:00">2024-08-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -293,10 +283,9 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="1-异步编程"><a href="#1-异步编程" class="headerlink" title="1. 异步编程"></a>1. 异步编程</h1><blockquote>
-<p><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/">https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/</a></p>
-</blockquote>
-<p><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/task-asynchronous-programming-model">任务异步编程模型 (Task asynchronous programming model)</a> 提供了对异步代码的抽象。可以像平常一样将代码编写为一系列语句。可以阅读该代码，就好像每个语句在下一个语句开始之前完成一样。编译器执行许多转换，因为其中一些语句可能会开启工作并返回表示正在进行的工作的 <a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task">Task</a>。</p>
+          <h1 id="0-前言"><a href="#0-前言" class="headerlink" title="0. 前言"></a>0. 前言</h1><p>这篇文章是本人在学习 C# 异步编程过程中所作的笔记。</p>
+<p>学习资源的来源是 Microsoft 的 C# 文档，参考链接在各个章节的开头列出。</p>
+<p>另外，为了加深理解，我编写了一些关于 C# 异步编程的示例，可在 Github 项目 <a target="_blank" rel="noopener" href="https://github.com/HASSSSSSSH/Learn-CSharp">Learn-CSharp</a> 上查看。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/csharp/asynchronous-programming/#more" rel="contents">
@@ -346,7 +335,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="修改时间：2024-08-10 00:00:00" itemprop="dateModified" datetime="2024-08-10T00:00:00+08:00">2024-08-10</time>
+                <time title="修改时间：2024-08-22 00:00:00" itemprop="dateModified" datetime="2024-08-22T00:00:00+08:00">2024-08-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -371,15 +360,9 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="1-C-程序的通用结构"><a href="#1-C-程序的通用结构" class="headerlink" title="1. C# 程序的通用结构"></a>1. C# 程序的通用结构</h1><blockquote>
-<p><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/">https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/</a></p>
-<p><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/tour-of-csharp/#program-structure">https://learn.microsoft.com/en-us/dotnet/csharp/tour-of-csharp/#program-structure</a></p>
-</blockquote>
-<p>C# 程序由一个或多个文件组成，每个文件均包含 0 个或多个命名空间，一个命名空间包含类、结构、接口、枚举、委托等类型或者其他命名空间。</p>
-<p>C# 中的关键组织结构概念包括 <em>程序 (programs)<em>、</em>命名空间 (namespaces)<em>、</em>类型 (types)<em>、</em>成员 (members)</em> 和 *程序集 (assemblies)*。程序声明类型，而类型 (类、结构、接口等) 则包含成员 (字段、方法、属性、事件等)，并被整理到命名空间中。</p>
-<p>编译完的 C# 程序实际上会打包到程序集中，程序集的文件扩展名通常为 <code>.exe</code> 或 <code>.dll</code>，具体视其分别实现的是应用程序还是库而定。</p>
-<p>C# 程序可以存储在多个源文件中。在编译 C# 程序时，将同时处理所有源文件，并且源文件可以自由地相互引用。从概念上讲，就好像所有源文件在被处理之前都连接到一个大文件。</p>
-<p>C# 并不限制源文件只能声明一种公共类型，也不要求源文件的文件名必须与其中声明的类型相匹配。</p>
+          <h1 id="0-前言"><a href="#0-前言" class="headerlink" title="0. 前言"></a>0. 前言</h1><p>这篇文章是本人在学习 C# 基础知识过程中所作的笔记。</p>
+<p>学习资源的主要来源是 Microsoft 的 C# 文档，但是文档上的知识点比较松散，于是我对重点知识进行整理和汇总，按章节罗列知识点，而参考链接在各个章节的开头列出。</p>
+<p>另外，为了加深理解，我为大多数知识点编写了代码示例，可在 Github 项目 <a target="_blank" rel="noopener" href="https://github.com/HASSSSSSSH/Learn-CSharp">Learn-CSharp</a> 上查看。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/csharp/fundamentals/#more" rel="contents">

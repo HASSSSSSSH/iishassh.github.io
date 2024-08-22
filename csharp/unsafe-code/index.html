@@ -21,15 +21,15 @@
     var CONFIG = {"hostname":"hasssssssh.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"valine","storage":true,"lazyload":false,"nav":null,"activeClass":"valine"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="1. 不安全代码 https:&#x2F;&#x2F;learn.microsoft.com&#x2F;en-us&#x2F;dotnet&#x2F;csharp&#x2F;language-reference&#x2F;unsafe-code  编写的大部分 C# 代码都是可验证的安全代码。可验证的安全代码是指 .NET 工具可验证代码是否安全。通常，安全代码不会直接使用指针访问内存，也不会分配原始内存，而是创建托管对象。 C# 支持 unsafe 上下文，可以在">
+  <meta name="description" content="0. 前言这篇文章是本人在学习 C# 不安全代码过程中所作的笔记。 学习资源的来源是 Microsoft 的 C# 文档，参考链接在各个章节的开头列出。 另外，为了加深理解，我编写了一些关于 C# 不安全代码的示例，可在 Github 项目 Learn-CSharp 上查看。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="C# 不安全代码">
 <meta property="og:url" content="https://hasssssssh.github.io/csharp/unsafe-code/index.html">
 <meta property="og:site_name" content="HASSH&#39;s Site">
-<meta property="og:description" content="1. 不安全代码 https:&#x2F;&#x2F;learn.microsoft.com&#x2F;en-us&#x2F;dotnet&#x2F;csharp&#x2F;language-reference&#x2F;unsafe-code  编写的大部分 C# 代码都是可验证的安全代码。可验证的安全代码是指 .NET 工具可验证代码是否安全。通常，安全代码不会直接使用指针访问内存，也不会分配原始内存，而是创建托管对象。 C# 支持 unsafe 上下文，可以在">
+<meta property="og:description" content="0. 前言这篇文章是本人在学习 C# 不安全代码过程中所作的笔记。 学习资源的来源是 Microsoft 的 C# 文档，参考链接在各个章节的开头列出。 另外，为了加深理解，我编写了一些关于 C# 不安全代码的示例，可在 Github 项目 Learn-CSharp 上查看。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2023-04-19T16:00:00.000Z">
-<meta property="article:modified_time" content="2024-08-14T16:00:00.000Z">
+<meta property="article:modified_time" content="2024-08-22T16:00:00.000Z">
 <meta property="article:author" content="HASSH">
 <meta name="twitter:card" content="summary">
 
@@ -185,7 +185,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="修改时间：2024-08-15 00:00:00" itemprop="dateModified" datetime="2024-08-15T00:00:00+08:00">2024-08-15</time>
+                <time title="修改时间：2024-08-23 00:00:00" itemprop="dateModified" datetime="2024-08-23T00:00:00+08:00">2024-08-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -211,7 +211,12 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h1 id="1-不安全代码"><a href="#1-不安全代码" class="headerlink" title="1. 不安全代码"></a>1. 不安全代码</h1><blockquote>
+        <h1 id="0-前言"><a href="#0-前言" class="headerlink" title="0. 前言"></a>0. 前言</h1><p>这篇文章是本人在学习 C# 不安全代码过程中所作的笔记。</p>
+<p>学习资源的来源是 Microsoft 的 C# 文档，参考链接在各个章节的开头列出。</p>
+<p>另外，为了加深理解，我编写了一些关于 C# 不安全代码的示例，可在 Github 项目 <a target="_blank" rel="noopener" href="https://github.com/HASSSSSSSH/Learn-CSharp">Learn-CSharp</a> 上查看。</p>
+<span id="more"></span>
+
+<h1 id="1-不安全代码"><a href="#1-不安全代码" class="headerlink" title="1. 不安全代码"></a>1. 不安全代码</h1><blockquote>
 <p><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/unsafe-code">https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/unsafe-code</a></p>
 </blockquote>
 <p>编写的大部分 C# 代码都是可验证的安全代码。可验证的安全代码是指 .NET 工具可验证代码是否安全。通常，安全代码不会直接使用指针访问内存，也不会分配原始内存，而是创建托管对象。</p>
@@ -224,8 +229,6 @@
 <li>使用不安全代码将引发安全风险和稳定性风险。</li>
 <li>必须使用 <a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/language#allowunsafeblocks">AllowUnsafeBlocks</a> 编译器选项来编译包含不安全块的代码。</li>
 </ul>
-<span id="more"></span>
-
 <h2 id="1-1-指针类型"><a href="#1-1-指针类型" class="headerlink" title="1.1 指针类型"></a>1.1 指针类型</h2><blockquote>
 <p><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/unsafe-code#pointer-types">https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/unsafe-code#pointer-types</a></p>
 </blockquote>
@@ -448,7 +451,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-%E4%B8%8D%E5%AE%89%E5%85%A8%E4%BB%A3%E7%A0%81"><span class="nav-text">1. 不安全代码</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1-%E6%8C%87%E9%92%88%E7%B1%BB%E5%9E%8B"><span class="nav-text">1.1 指针类型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2-%E5%87%BD%E6%95%B0%E6%8C%87%E9%92%88"><span class="nav-text">1.2 函数指针</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-3-unsafe"><span class="nav-text">1.3 unsafe</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-4-stackalloc-%E8%A1%A8%E8%BE%BE%E5%BC%8F"><span class="nav-text">1.4 stackalloc 表达式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-5-fixed-%E8%AF%AD%E5%8F%A5"><span class="nav-text">1.5 fixed 语句</span></a></li></ol></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#0-%E5%89%8D%E8%A8%80"><span class="nav-text">0. 前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#1-%E4%B8%8D%E5%AE%89%E5%85%A8%E4%BB%A3%E7%A0%81"><span class="nav-text">1. 不安全代码</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1-%E6%8C%87%E9%92%88%E7%B1%BB%E5%9E%8B"><span class="nav-text">1.1 指针类型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2-%E5%87%BD%E6%95%B0%E6%8C%87%E9%92%88"><span class="nav-text">1.2 函数指针</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-3-unsafe"><span class="nav-text">1.3 unsafe</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-4-stackalloc-%E8%A1%A8%E8%BE%BE%E5%BC%8F"><span class="nav-text">1.4 stackalloc 表达式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-5-fixed-%E8%AF%AD%E5%8F%A5"><span class="nav-text">1.5 fixed 语句</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
