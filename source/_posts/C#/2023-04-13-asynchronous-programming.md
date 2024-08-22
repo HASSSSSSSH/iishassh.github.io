@@ -1,11 +1,23 @@
 ---
 title: C# 异步编程
 date: 2023-04-13
-updated: 2024-08-15
+updated: 2024-08-23
 permalink: /csharp/asynchronous-programming/
 categories:
 - [C#]
 ---
+
+# 0. 前言
+
+这篇文章是本人在学习 C# 异步编程过程中所作的笔记。
+
+学习资源的来源是 Microsoft 的 C# 文档，参考链接在各个章节的开头列出。
+
+另外，为了加深理解，我编写了一些关于 C# 异步编程的示例，可在 Github 项目 [Learn-CSharp](https://github.com/HASSSSSSSH/Learn-CSharp) 上查看。
+
+
+
+<!-- more -->
 
 # 1. 异步编程
 
@@ -14,8 +26,6 @@ categories:
 [任务异步编程模型 (Task asynchronous programming model)](https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/task-asynchronous-programming-model) 提供了对异步代码的抽象。可以像平常一样将代码编写为一系列语句。可以阅读该代码，就好像每个语句在下一个语句开始之前完成一样。编译器执行许多转换，因为其中一些语句可能会开启工作并返回表示正在进行的工作的 [Task](https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task)。
 
 
-
-<!-- more -->
 
 ## 1.1 异步编程场景
 
